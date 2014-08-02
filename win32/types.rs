@@ -18,6 +18,8 @@ pub use libc::types::os::arch::c95::{c_int, c_uint, c_long, c_ulong, c_short, c_
 pub use libc::types::os::arch::c99::{c_longlong, c_ulonglong};
 pub use libc::types::common::c95::c_void;
 
+use std::default::Default;
+
 // windef.h
 pub type ATOM = WORD;
 pub type BOOL = c_int;
@@ -224,6 +226,7 @@ pub type QWORD = u64; // unsigned __int64
 
 // additional types used in common now
 
+#[deriving(Default)]
 pub struct RECT {
     pub left: LONG,
     pub top: LONG,
@@ -233,3 +236,30 @@ pub struct RECT {
 pub type PRECT = *mut RECT;
 pub type LPRECT = *mut RECT;
 pub type LPCRECT = *const RECT;
+
+#[deriving(Default)]
+pub struct POINT {
+    pub x: LONG,
+    pub y: LONG,
+}
+pub type PPOINT = *mut POINT;
+
+pub struct MSG {
+    pub hwnd: HWND,
+    pub message: UINT,
+    pub wParam: WPARAM,
+    pub lParam: LPARAM,
+    pub time: DWORD,
+    pub pt: POINT,
+}
+pub type PMSG = *mut MSG;
+pub type LPMSG = *mut MSG;
+
+impl Default for MSG {
+    fn default() -> MSG {
+        MSG {
+            hwnd: 0 as HWND,
+            ..Default::default()
+        }
+    }
+}
