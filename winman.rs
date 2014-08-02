@@ -8,6 +8,9 @@ use win32::window::{MessageBoxA,MessageBoxW};
 mod win32;
 
 fn main() {
+    // https://github.com/rust-lang/rust/issues/13259
+    unsafe { ::std::rt::stack::record_sp_limit(0); }
+
     MessageBoxA(0 as HWND, "text (cstr)".to_c_str().as_ptr(), "title (cstr)".to_c_str().as_ptr(), 0);
     MessageBoxW(0 as HWND, "text (wcstr)".to_c_wstr().as_ptr(), "title (wcstr)".to_c_wstr().as_ptr(), 0);
 }
