@@ -21,7 +21,7 @@ fn register_hotkeys() {
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
-    for i in range(1, 10) {
+    for i in range_inclusive(1, 9) {
         let vk_n = VK_0 + i;
 
         RegisterHotKey(0 as HWND, 1, MOD_GRAB, vk_n);
@@ -52,7 +52,7 @@ fn process_hotkey(hotkey: (UINT, UINT)) {
 }
 
 fn loword(u: DWORD) -> WORD {
-    ((u & 0xFFFF0000) >> 16)  as WORD
+    ((u & 0xFFFF0000) >> 16) as WORD
 }
 
 fn hiword(u: DWORD) -> WORD {
