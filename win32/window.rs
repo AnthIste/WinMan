@@ -36,6 +36,10 @@ mod ffi {
         pub fn DispatchMessageW(
             lpMsg: LPMSG
         ) -> BOOL;
+
+        pub fn PostQuitMessage(
+            nExitCode: c_int
+        );
     }
 }
 
@@ -85,4 +89,10 @@ pub fn DispatchMessageW(
     lpMsg: LPMSG
 ) -> BOOL {
     unsafe { ffi::DispatchMessageW(lpMsg) }
+}
+
+pub fn PostQuitMessage(
+    nExitCode: c_int
+) {
+    unsafe { ffi::PostQuitMessage(nExitCode) }
 }
