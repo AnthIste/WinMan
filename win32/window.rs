@@ -24,6 +24,18 @@ mod ffi {
         pub fn GetMessageW(
             lpMsg: LPMSG, hWnd: HWND, wMsgFilterMin: UINT, wMsgFilterMax: UINT
         ) -> BOOL;
+
+        pub fn TranslateMessage(
+            lpMsg: LPMSG
+        ) -> BOOL;
+
+        pub fn DispatchMessageA(
+            lpMsg: LPMSG
+        ) -> BOOL;
+
+        pub fn DispatchMessageW(
+            lpMsg: LPMSG
+        ) -> BOOL;
     }
 }
 
@@ -55,4 +67,22 @@ pub fn GetMessageW(
     lpMsg: LPMSG, hWnd: HWND, wMsgFilterMin: UINT, wMsgFilterMax: UINT
 ) -> BOOL {
     unsafe { ffi::GetMessageW(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax) }
+}
+
+pub fn TranslateMessage(
+    lpMsg: LPMSG
+) -> BOOL {
+    unsafe { ffi::TranslateMessage(lpMsg) }
+}
+
+pub fn DispatchMessageA(
+    lpMsg: LPMSG
+) -> BOOL {
+    unsafe { ffi::DispatchMessageA(lpMsg) }
+}
+
+pub fn DispatchMessageW(
+    lpMsg: LPMSG
+) -> BOOL {
+    unsafe { ffi::DispatchMessageW(lpMsg) }
 }

@@ -3,16 +3,16 @@
 RUSTC?=rustc.exe
 RUST_OPTS=
 CODEGEN_OPTS=-C link-args="-Wl,--subsystem,windows"
-SRC=winman.rs
-EXE=$(patsubst %.rs, %.exe, $(SRC))
+WIN32_SRC=win32/mod.rs win32/types.rs win32/window.rs win32/wstr.rs
+SRC=winman.rs $(WIN32_SRC)
 
 .SUFFIXES:
 
 .PHONY: all
-all: $(EXE)
+all: winman.exe
 
-%.exe: %.rs
-	$(RUSTC) -o $@ $< $(CODEGEN_OPTS) $(RUST_OPTS)
+winman.exe: $(SRC)
+	$(RUSTC) -o $@ winman.rs $(CODEGEN_OPTS) $(RUST_OPTS)
 
 .PHONY: clean
 clean:

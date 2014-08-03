@@ -259,7 +259,11 @@ impl Default for MSG {
     fn default() -> MSG {
         MSG {
             hwnd: 0 as HWND,
-            ..Default::default()
+            message: 0,
+            wParam: 0,
+            lParam: 0,
+            time: 0,
+            pt: Default::default(),
         }
     }
 }
