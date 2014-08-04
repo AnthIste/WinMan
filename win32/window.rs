@@ -40,6 +40,10 @@ mod ffi {
         pub fn PostQuitMessage(
             nExitCode: c_int
         );
+
+        pub fn Shell_NotifyIcon(
+            dwMessage: DWORD, lpdata: PNOTIFYICONDATA
+        ) -> BOOL;
     }
 }
 
@@ -95,4 +99,10 @@ pub fn PostQuitMessage(
     nExitCode: c_int
 ) {
     unsafe { ffi::PostQuitMessage(nExitCode) }
+}
+
+pub fn Shell_NotifyIcon(
+    dwMessage: DWORD, lpdata: PNOTIFYICONDATA
+) -> BOOL {
+    unsafe { ffi::Shell_NotifyIcon(dwMessage, lpdata) }
 }

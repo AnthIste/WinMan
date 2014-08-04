@@ -3,10 +3,12 @@
 extern crate libc;
 
 use std::default::Default;
+use std::iter::range_inclusive;
 
 use win32::constants::*;
-use win32::types::{HWND, MSG, UINT, DWORD, WORD};
-use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage};
+use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA};
+use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
+                    Shell_NotifyIcon};
 
 // Consider moving to crate win32
 mod win32;
@@ -14,6 +16,12 @@ mod win32;
 static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
 static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
 static MOD_SWITCH: UINT = MOD_ALT;
+
+pub fn register_systray_icon() {
+    let mut nid: NOTIFYICONDATA = Default::default();
+
+    Shell_NotifyIcon(0x00000000, &mut nid);
+}
 
 fn register_hotkeys() {
     // CTRL-ALT-Q to quit
@@ -70,6 +78,7 @@ fn main() {
     // https://github.com/rust-lang/rust/issues/13259
     unsafe { ::std::rt::stack::record_sp_limit(0); }
 
+    register_systray_icon();
     register_hotkeys();
 
     let mut msg: MSG = Default::default();

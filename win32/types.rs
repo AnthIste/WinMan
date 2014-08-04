@@ -267,3 +267,58 @@ impl Default for MSG {
         }
     }
 }
+
+pub struct GUID {
+    Data1: DWORD,
+    Data2: WORD,
+    Data3: WORD,
+    Data4: [BYTE, ..8],
+}
+
+impl Default for GUID {
+    fn default() -> GUID {
+        GUID {
+            Data1: 0,
+            Data2: 0,
+            Data3: 0,
+            Data4: [0, ..8],
+        }
+    }
+}
+
+// TCHAR is weird: http://msdn.microsoft.com/en-us/library/bb415628.aspx
+// Union is not implemented in Rust
+pub struct NOTIFYICONDATA {
+    cbSize: DWORD,
+    hWnd: HWND,
+    uID: UINT,
+    uFlags: UINT,
+    uCallbackMessage: UINT,
+    hIcon: HICON,
+    szInfo: [c_char, ..256],     // TCHAR[256]
+    uTimeout_uVersion: UINT,     // union
+    szInfoTitle: [c_char, ..64], // TCHAR[64]
+    dwInfoFlags: DWORD,
+    guidItem: GUID,
+    hBalloonIcon: HICON,
+}
+pub type PNOTIFYICONDATA = *mut NOTIFYICONDATA;
+
+impl Default for NOTIFYICONDATA {
+    fn default() -> NOTIFYICONDATA {
+        NOTIFYICONDATA {
+            cbSize: 0,
+            hWnd: 0 as HWND,
+            uID: 0,
+            uFlags: 0,
+            uCallbackMessage: 0,
+            hIcon: 0 as HICON,
+            szInfo: [0, ..256],
+            uTimeout_uVersion: 0,
+            szInfoTitle: [0, ..64],
+            dwInfoFlags: 0,
+            guidItem: Default::default(),
+            hBalloonIcon: 0 as HICON,
+        }
+    }
+}
