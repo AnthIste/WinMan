@@ -44,6 +44,28 @@ mod ffi {
         pub fn Shell_NotifyIcon(
             dwMessage: DWORD, lpdata: PNOTIFYICONDATA
         ) -> BOOL;
+
+        pub fn RegisterClassExW(
+            lpwcx: *const WNDCLASSEX
+        ) -> ATOM;
+
+        pub fn CreateWindowExW(
+            extrastyle: DWORD, classname: LPCWSTR,
+            windowname: LPCWSTR, style: DWORD,
+            x: c_int, y: c_int, width: c_int, height: c_int,
+            parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+        ) -> HWND;
+
+        pub fn ShowWindow(hwnd: HWND, nCmdShow: c_int) -> BOOL;
+
+        pub fn DefWindowProcW(
+            hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM
+        ) -> LRESULT;
+    }
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        pub fn GetLastError() -> DWORD;
     }
 }
 
@@ -105,4 +127,29 @@ pub fn Shell_NotifyIcon(
     dwMessage: DWORD, lpdata: PNOTIFYICONDATA
 ) -> BOOL {
     unsafe { ffi::Shell_NotifyIcon(dwMessage, lpdata) }
+}
+
+pub fn RegisterClassExW(
+    lpwcx: *const WNDCLASSEX
+) -> ATOM {
+    unsafe { ffi::RegisterClassExW(lpwcx) }
+}
+
+pub fn CreateWindowExW(
+    extrastyle: DWORD, classname: LPCWSTR,
+    windowname: LPCWSTR, style: DWORD,
+    x: c_int, y: c_int, width: c_int, height: c_int,
+    parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+) -> HWND {
+    unsafe { ffi::CreateWindowExW(extrastyle, classname, windowname, style, x, y, width, height, parent, menu, instance, param) }
+}
+
+pub fn DefWindowProcW(
+    hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM
+) -> LRESULT {
+    unsafe { ffi::DefWindowProcW(hwnd, msg, wparam, lparam) }
+}
+
+pub fn GetLastError() -> DWORD {
+    unsafe { ffi::GetLastError() }
 }

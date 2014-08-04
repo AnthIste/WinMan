@@ -12,6 +12,8 @@ impl<'a> ToCWStr for &'a str {
 
 impl ToCWStr for String {
     fn to_c_wstr(&self) -> Vec<WCHAR> {
-        self.as_slice().utf16_units().collect()
+        let mut utf16: Vec<WCHAR> = self.as_slice().utf16_units().collect();
+        utf16.push(0 as WCHAR);
+        utf16
     }
 }

@@ -19,6 +19,7 @@ pub use libc::types::os::arch::c99::{c_longlong, c_ulonglong};
 pub use libc::types::common::c95::c_void;
 
 use std::default::Default;
+use std::mem::size_of;
 
 // windef.h
 pub type ATOM = WORD;
@@ -269,10 +270,10 @@ impl Default for MSG {
 }
 
 pub struct GUID {
-    Data1: DWORD,
-    Data2: WORD,
-    Data3: WORD,
-    Data4: [BYTE, ..8],
+    pub Data1: DWORD,
+    pub Data2: WORD,
+    pub Data3: WORD,
+    pub Data4: [BYTE, ..8],
 }
 
 impl Default for GUID {
@@ -289,25 +290,25 @@ impl Default for GUID {
 // TCHAR is weird: http://msdn.microsoft.com/en-us/library/bb415628.aspx
 // Union is not implemented in Rust
 pub struct NOTIFYICONDATA {
-    cbSize: DWORD,
-    hWnd: HWND,
-    uID: UINT,
-    uFlags: UINT,
-    uCallbackMessage: UINT,
-    hIcon: HICON,
-    szInfo: [c_char, ..256],     // TCHAR[256]
-    uTimeout_uVersion: UINT,     // union
-    szInfoTitle: [c_char, ..64], // TCHAR[64]
-    dwInfoFlags: DWORD,
-    guidItem: GUID,
-    hBalloonIcon: HICON,
+    pub cbSize: DWORD,
+    pub hWnd: HWND,
+    pub uID: UINT,
+    pub uFlags: UINT,
+    pub uCallbackMessage: UINT,
+    pub hIcon: HICON,
+    pub szInfo: [c_char, ..256],     // TCHAR[256]
+    pub uTimeout_uVersion: UINT,     // union
+    pub szInfoTitle: [c_char, ..64], // TCHAR[64]
+    pub dwInfoFlags: DWORD,
+    pub guidItem: GUID,
+    pub hBalloonIcon: HICON,
 }
 pub type PNOTIFYICONDATA = *mut NOTIFYICONDATA;
 
 impl Default for NOTIFYICONDATA {
     fn default() -> NOTIFYICONDATA {
         NOTIFYICONDATA {
-            cbSize: 0,
+            cbSize: size_of::<NOTIFYICONDATA>() as DWORD,
             hWnd: 0 as HWND,
             uID: 0,
             uFlags: 0,
@@ -319,6 +320,43 @@ impl Default for NOTIFYICONDATA {
             dwInfoFlags: 0,
             guidItem: Default::default(),
             hBalloonIcon: 0 as HICON,
+        }
+    }
+}
+
+// extern "system" fn(HWND, UINT, WPARAM, LPARAM) -> LRESULT
+pub type WNDPROC = *const c_void;
+
+pub struct WNDCLASSEX {
+    pub cbSize: UINT,
+    pub style: UINT,
+    pub lpfnWndProc: WNDPROC,
+    pub cbClsExtra: c_int,
+    pub cbWndExtra: c_int,
+    pub hInstance: HINSTANCE,
+    pub hIcon: HICON,
+    pub hCursor: HCURSOR,
+    pub hbrBackground: HBRUSH,
+    pub lpszMenuName: LPCWSTR,
+    pub lpszClassName: LPCWSTR,
+    pub hIconSm: HICON,
+}
+
+impl Default for WNDCLASSEX {
+    fn default() -> WNDCLASSEX {
+        WNDCLASSEX {
+            cbSize: size_of::<WNDCLASSEX>() as UINT,
+            style: 0,
+            lpfnWndProc: 0 as WNDPROC,
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: 0 as HINSTANCE,
+            hIcon: 0 as HICON,
+            hCursor: 0 as HCURSOR,
+            hbrBackground: 0 as HBRUSH,
+            lpszMenuName: 0 as LPCWSTR,
+            lpszClassName: 0 as LPCWSTR,
+            hIconSm: 0 as HICON,
         }
     }
 }

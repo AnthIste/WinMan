@@ -6,9 +6,11 @@ use std::default::Default;
 use std::iter::range_inclusive;
 
 use win32::constants::*;
-use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA};
+use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA,WNDCLASSEX,WNDPROC,WPARAM,LPARAM,LRESULT,HMENU,
+                   HINSTANCE,LPVOID,LPCWSTR};
 use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
-                    Shell_NotifyIcon};
+                    Shell_NotifyIcon,RegisterClassExW,DefWindowProcW,CreateWindowExW,GetLastError};
+use win32::wstr::ToCWStr;
 
 // Consider moving to crate win32
 mod win32;
@@ -17,10 +19,53 @@ static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
 static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
 static MOD_SWITCH: UINT = MOD_ALT;
 
-pub fn register_systray_icon() {
+fn create_dummy_window(wndProc: WNDPROC) -> Result<HWND, DWORD> {
+    let mut wc: WNDCLASSEX = Default::default();
+
+    wc.lpfnWndProc = wndProc;
+    wc.lpszClassName = "MyMagicClassName".to_c_wstr().as_ptr();
+
+    if RegisterClassExW(&wc) == 0 {
+        return Err(GetLastError());
+    }
+
+    let hWnd = CreateWindowExW(
+        0,
+        "MyMagicClassName".to_c_wstr().as_ptr(),
+        0 as LPCWSTR,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0 as HWND,
+        0 as HMENU,
+        0 as HINSTANCE,
+        0 as LPVOID);
+
+    if hWnd == 0 as HWND {
+        Err(GetLastError())
+    }
+    else {
+        Ok(hWnd)
+    }
+}
+
+fn register_systray_icon(hWnd: HWND) -> NOTIFYICONDATA {
     let mut nid: NOTIFYICONDATA = Default::default();
 
-    Shell_NotifyIcon(0x00000000, &mut nid);
+    nid.uID = 0x29A;
+    nid.uCallbackMessage = 1234;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.hWnd = hWnd;
+
+    Shell_NotifyIcon(NIM_ADD, &mut nid);
+
+    nid
+}
+
+fn deregister_systray_icon(nid: &mut NOTIFYICONDATA) {
+    Shell_NotifyIcon(NIM_DELETE, nid);
 }
 
 fn register_hotkeys() {
@@ -78,20 +123,40 @@ fn main() {
     // https://github.com/rust-lang/rust/issues/13259
     unsafe { ::std::rt::stack::record_sp_limit(0); }
 
-    register_systray_icon();
-    register_hotkeys();
+    let hWndResult = create_dummy_window(main_wnd_proc as WNDPROC);
 
-    let mut msg: MSG = Default::default();
+    // Potential macro to handle Option<T> failures:
+    // `macro_rules! try_option {($x:expr) => (match $x {Some(x) => x, None => return})}`
+    // Otherwise use try! with Result<T, E>
 
-    while GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
-        TranslateMessage(&mut msg);
-        DispatchMessageW(&mut msg);
+    match hWndResult {
+        Ok(hWnd) => {
+            register_hotkeys();
 
-        if msg.message == WM_HOTKEY {
-            let hotkey = extract_hotkey(&msg);
-            process_hotkey(hotkey);
+            let mut nid = register_systray_icon(hWnd);
+            let mut msg: MSG = Default::default();
+
+            while GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
+                TranslateMessage(&mut msg);
+                DispatchMessageW(&mut msg);
+
+                if msg.message == WM_HOTKEY {
+                    let hotkey = extract_hotkey(&msg);
+                    process_hotkey(hotkey);
+                }
+            }
+
+            deregister_systray_icon(&mut nid);
+
+            MessageBoxA(0 as HWND, "All done!".to_c_str().as_ptr(), "Exiting".to_c_str().as_ptr(), 0);
+        }
+
+        Err(code) => {
+            MessageBoxA(0 as HWND, format!("We couldn't create a window becase of {:X} :<", code).to_c_str().as_ptr(), "Exiting".to_c_str().as_ptr(), 0);
         }
     }
+}
 
-    MessageBoxA(0 as HWND, "All done!".to_c_str().as_ptr(), "Exiting".to_c_str().as_ptr(), 0);
+extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
+    DefWindowProcW(hWnd, msg, wParam, lParam)
 }
