@@ -2,7 +2,7 @@
 
 RUSTC?=rustc.exe
 RUST_OPTS=
-CODEGEN_OPTS=-C prefer-dynamic -C link-args="res/winman.obj -Wl,--subsystem,windows"
+CODEGEN_OPTS=-C link-args="res/winman.obj -Wl,--subsystem,windows"
 WIN32_SRC=win32/mod.rs win32/constants.rs win32/types.rs win32/window.rs win32/wstr.rs
 SRC=winman.rs $(WIN32_SRC)
 
