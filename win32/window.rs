@@ -61,11 +61,31 @@ mod ffi {
         pub fn DefWindowProcW(
             hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM
         ) -> LRESULT;
+
+        pub fn LoadImageA(
+            hInst: HINSTANCE, name: LPCSTR, u_type: UINT, cx: c_int, cy: c_int, fuLoad: UINT
+        ) -> HANDLE;
+
+        pub fn LoadImageW(
+            hInst: HINSTANCE, name: LPCWSTR, u_type: UINT, cx: c_int, cy: c_int, fuLoad: UINT
+        ) -> HANDLE;
+
+        pub fn GetSystemMetrics(
+            nIndex: c_int
+        ) -> c_int;
     }
 
     #[link(name = "kernel32")]
     extern "system" {
         pub fn GetLastError() -> DWORD;
+
+        pub fn GetModuleHandleA(
+            lpModuleName: LPCSTR
+        ) -> HMODULE;
+
+        pub fn GetModuleHandleW(
+            lpModuleName: LPCWSTR
+        ) -> HMODULE;
     }
 }
 
@@ -152,4 +172,34 @@ pub fn DefWindowProcW(
 
 pub fn GetLastError() -> DWORD {
     unsafe { ffi::GetLastError() }
+}
+
+pub fn LoadImageA(
+    hInst: HINSTANCE, name: LPCSTR, u_type: UINT, cx: c_int, cy: c_int, fuLoad: UINT
+) -> HANDLE {
+    unsafe { ffi::LoadImageA(hInst, name, u_type, cx, cy, fuLoad) }
+}
+
+pub fn LoadImageW(
+    hInst: HINSTANCE, name: LPCWSTR, u_type: UINT, cx: c_int, cy: c_int, fuLoad: UINT
+) -> HANDLE {
+    unsafe { ffi::LoadImageW(hInst, name, u_type, cx, cy, fuLoad) }
+}
+
+pub fn GetSystemMetrics(
+    nIndex: c_int
+) -> c_int {
+    unsafe { ffi::GetSystemMetrics(nIndex) }
+}
+
+pub fn GetModuleHandleA(
+    lpModuleName: LPCSTR
+) -> HMODULE {
+    unsafe { ffi::GetModuleHandleA(lpModuleName) }
+}
+
+pub fn GetModuleHandleW(
+    lpModuleName: LPCWSTR
+) -> HMODULE {
+    unsafe { ffi::GetModuleHandleW(lpModuleName) }
 }

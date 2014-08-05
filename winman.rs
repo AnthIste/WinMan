@@ -7,17 +7,26 @@ use std::iter::range_inclusive;
 
 use win32::constants::*;
 use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA,WNDCLASSEX,WNDPROC,WPARAM,LPARAM,LRESULT,HMENU,
-                   HINSTANCE,LPVOID,LPCWSTR};
+                   HINSTANCE,LPVOID,LPCWSTR,ULONG_PTR,HICON};
 use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
-                    Shell_NotifyIcon,RegisterClassExW,DefWindowProcW,CreateWindowExW,GetLastError};
+                    Shell_NotifyIcon,RegisterClassExW,DefWindowProcW,CreateWindowExW,GetLastError,LoadImageW,
+                    GetSystemMetrics,GetModuleHandleW};
 use win32::wstr::ToCWStr;
 
 // Consider moving to crate win32
 mod win32;
 
+// resource.h
+static IDI_ICON1: UINT = 103;
+
 static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
 static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
 static MOD_SWITCH: UINT = MOD_ALT;
+
+#[allow(non_snake_case_functions)]
+fn MAKEINTRESOURCEW(i: UINT) -> LPCWSTR {
+    ((i as WORD) as ULONG_PTR) as LPCWSTR
+}
 
 fn create_dummy_window(wndProc: WNDPROC) -> Result<HWND, DWORD> {
     let mut wc: WNDCLASSEX = Default::default();
@@ -52,12 +61,21 @@ fn create_dummy_window(wndProc: WNDPROC) -> Result<HWND, DWORD> {
 }
 
 fn register_systray_icon(hWnd: HWND) -> NOTIFYICONDATA {
+    let hInstance = GetModuleHandleW(0 as LPCWSTR);
     let mut nid: NOTIFYICONDATA = Default::default();
 
     nid.uID = 0x29A;
     nid.uCallbackMessage = 1234;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.hWnd = hWnd;
+    nid.hIcon = LoadImageW(
+        hInstance,
+        MAKEINTRESOURCEW(IDI_ICON1),
+        1, // IMAGE_ICON
+        GetSystemMetrics(49), // SM_CXSMICON
+        GetSystemMetrics(50), // SM_CYSMICON
+        0 // LR_DEFAULTCOLOR
+        ) as HICON;
 
     Shell_NotifyIcon(NIM_ADD, &mut nid);
 
