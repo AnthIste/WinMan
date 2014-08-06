@@ -6,12 +6,12 @@ use std::default::Default;
 use std::iter::range_inclusive;
 
 use win32::constants::*;
-use win32::types::{HWND,MSG,UINT,DWORD,WORD,WNDPROC,WPARAM,LPARAM,LRESULT,POINT,RECT};
+use win32::types::{HWND,MSG,UINT,DWORD,WNDPROC,WPARAM,LPARAM,LRESULT,POINT,RECT};
 use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
                     DefWindowProcW,CreatePopupMenu,AppendMenuA,GetCursorPos,SetForegroundWindow,TrackPopupMenu,
                     DestroyWindow};
+use win32::macro::{LOWORD,HIWORD};
 
-use app::window::{Win32Result,Win32Window};
 use app::dummy::{DummyWindow};
 
 // Consider moving to crate win32
@@ -81,17 +81,9 @@ fn process_hotkey(hotkey: (UINT, UINT)) {
     }
 }
 
-fn hiword(u: DWORD) -> WORD {
-    ((u & 0xFFFF0000) >> 16) as WORD
-}
-
-fn loword(u: DWORD) -> WORD {
-    (u & 0x0000FFFF) as WORD
-}
-
 fn extract_hotkey(msg: &MSG) -> (UINT, UINT) {
-    let modifiers = loword(msg.lParam as DWORD) as UINT;
-    let vk = hiword(msg.lParam as DWORD) as UINT;
+    let modifiers = LOWORD(msg.lParam as DWORD) as UINT;
+    let vk = HIWORD(msg.lParam as DWORD) as UINT;
 
     (modifiers, vk)
 }
@@ -104,7 +96,7 @@ fn main() {
     // `macro_rules! try_option {($x:expr) => (match $x {Some(x) => x, None => return})}`
     // Otherwise use try! with Result<T, E>
 
-    let create_result: Win32Result<DummyWindow> = Win32Window::create(None, main_wnd_proc as WNDPROC);
+    let create_result = DummyWindow::create(None, main_wnd_proc as WNDPROC);
 
     match create_result {
         Ok(mut dummy_window) => {
@@ -150,7 +142,7 @@ extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: 
         }
 
         WM_COMMAND => {
-            match loword(wParam as DWORD) {
+            match LOWORD(wParam as DWORD) {
                 1 => { // TM_EXIT
                     DestroyWindow(hWnd);
                 }
