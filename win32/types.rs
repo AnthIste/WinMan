@@ -328,7 +328,41 @@ impl Default for NOTIFYICONDATA {
 // extern "system" fn(HWND, UINT, WPARAM, LPARAM) -> LRESULT
 pub type WNDPROC = *const c_void;
 
-pub struct WNDCLASSEX {
+pub struct WNDCLASSEXA {
+    pub cbSize: UINT,
+    pub style: UINT,
+    pub lpfnWndProc: WNDPROC,
+    pub cbClsExtra: c_int,
+    pub cbWndExtra: c_int,
+    pub hInstance: HINSTANCE,
+    pub hIcon: HICON,
+    pub hCursor: HCURSOR,
+    pub hbrBackground: HBRUSH,
+    pub lpszMenuName: LPCSTR,
+    pub lpszClassName: LPCSTR,
+    pub hIconSm: HICON,
+}
+
+impl Default for WNDCLASSEXA {
+    fn default() -> WNDCLASSEXA {
+        WNDCLASSEXA {
+            cbSize: size_of::<WNDCLASSEXA>() as UINT,
+            style: 0,
+            lpfnWndProc: 0 as WNDPROC,
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: 0 as HINSTANCE,
+            hIcon: 0 as HICON,
+            hCursor: 0 as HCURSOR,
+            hbrBackground: 0 as HBRUSH,
+            lpszMenuName: 0 as LPCSTR,
+            lpszClassName: 0 as LPCSTR,
+            hIconSm: 0 as HICON,
+        }
+    }
+}
+
+pub struct WNDCLASSEXW {
     pub cbSize: UINT,
     pub style: UINT,
     pub lpfnWndProc: WNDPROC,
@@ -343,10 +377,10 @@ pub struct WNDCLASSEX {
     pub hIconSm: HICON,
 }
 
-impl Default for WNDCLASSEX {
-    fn default() -> WNDCLASSEX {
-        WNDCLASSEX {
-            cbSize: size_of::<WNDCLASSEX>() as UINT,
+impl Default for WNDCLASSEXW {
+    fn default() -> WNDCLASSEXW {
+        WNDCLASSEXW {
+            cbSize: size_of::<WNDCLASSEXW>() as UINT,
             style: 0,
             lpfnWndProc: 0 as WNDPROC,
             cbClsExtra: 0,

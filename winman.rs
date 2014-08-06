@@ -6,28 +6,21 @@ use std::default::Default;
 use std::iter::range_inclusive;
 
 use win32::constants::*;
-use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA,WNDCLASSEX,WNDPROC,WPARAM,LPARAM,LRESULT,HMENU,
-                   HINSTANCE,LPVOID,LPCWSTR,ULONG_PTR,HICON,POINT,RECT};
+use win32::types::{HWND,MSG,UINT,DWORD,WORD,WNDPROC,WPARAM,LPARAM,LRESULT,POINT,RECT};
 use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
-                    Shell_NotifyIcon,RegisterClassExW,DefWindowProcW,CreateWindowExW,GetLastError,LoadImageW,
-                    GetSystemMetrics,GetModuleHandleW,CreatePopupMenu,AppendMenuA,GetCursorPos,
-                    SetForegroundWindow,TrackPopupMenu,DestroyWindow};
-use win32::wstr::ToCWStr;
+                    DefWindowProcW,CreatePopupMenu,AppendMenuA,GetCursorPos,SetForegroundWindow,TrackPopupMenu,
+                    DestroyWindow};
+
+use app::window::{Win32Result,Win32Window};
+use app::dummy::{DummyWindow};
 
 // Consider moving to crate win32
 mod win32;
-
-// resource.h
-static IDI_ICON1: UINT = 103;
+mod app;
 
 static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
 static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
 static MOD_SWITCH: UINT = MOD_ALT;
-
-#[allow(non_snake_case_functions)]
-fn MAKEINTRESOURCEW(i: UINT) -> LPCWSTR {
-    ((i as WORD) as ULONG_PTR) as LPCWSTR
-}
 
 fn show_popup_menu(hWnd: HWND) {
     let mut curPoint: POINT = Default::default();
@@ -103,106 +96,6 @@ fn extract_hotkey(msg: &MSG) -> (UINT, UINT) {
     (modifiers, vk)
 }
 
-struct DummyWindow {
-    pub hWnd: HWND,
-    pub nid: Option<NOTIFYICONDATA>,
-}
-
-impl DummyWindow {
-    pub fn create(wndProc: WNDPROC) -> Result<DummyWindow, u32> {
-        let mut wc: WNDCLASSEX = Default::default();
-
-        wc.lpfnWndProc = wndProc;
-        wc.lpszClassName = "MyMagicClassName".to_c_wstr().as_ptr();
-
-        if RegisterClassExW(&wc) == 0 {
-            return Err(GetLastError());
-        }
-
-        let hWnd = CreateWindowExW(
-            0,
-            "MyMagicClassName".to_c_wstr().as_ptr(),
-            0 as LPCWSTR,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0 as HWND,
-            0 as HMENU,
-            0 as HINSTANCE,
-            0 as LPVOID);
-
-        if hWnd == 0 as HWND {
-            return Err(GetLastError());
-        }
-
-        let dummy_window = DummyWindow {
-            hWnd: hWnd,
-            nid: None,
-        };
-
-        Ok(dummy_window)
-    }
-
-    pub fn register_systray_icon(&mut self) {
-        match self.nid {
-            None => {
-                let hInstance = GetModuleHandleW(0 as LPCWSTR);
-                let mut nid: NOTIFYICONDATA = Default::default();
-
-                nid.uID = 0x29A;
-                nid.uCallbackMessage = 1234;
-                nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-                nid.hWnd = self.hWnd;
-                nid.hIcon = LoadImageW(
-                    hInstance,
-                    MAKEINTRESOURCEW(IDI_ICON1),
-                    1, // IMAGE_ICON
-                    GetSystemMetrics(49), // SM_CXSMICON
-                    GetSystemMetrics(50), // SM_CYSMICON
-                    0 // LR_DEFAULTCOLOR
-                    ) as HICON;
-
-                Shell_NotifyIcon(NIM_ADD, &mut nid);
-
-                self.nid = Some(nid);
-            }
-            Some(_) => { }
-        }
-    }
-
-    pub fn deregister_systray_icon(&mut self) {
-        match self.nid {
-            Some(mut nid) => {
-                Shell_NotifyIcon(NIM_DELETE, &mut nid);
-                self.nid = None;
-            }
-            None => { }
-        }
-    }
-}
-
-trait OnWindowMessage {
-    fn on_create(&mut self) -> bool { true }
-
-    fn on_destroy(&mut self) -> bool { true }
-}
-
-impl OnWindowMessage for DummyWindow {
-    fn on_create(&mut self) -> bool {
-        self.register_systray_icon();
-        true
-    }
-
-    fn on_destroy(&mut self) -> bool {
-        PostQuitMessage(0);
-        true
-    }
-}
-
-// static mut s_win: Option<&DummyWindow> = None;
-
 fn main() {
     // https://github.com/rust-lang/rust/issues/13259
     unsafe { ::std::rt::stack::record_sp_limit(0); }
@@ -211,7 +104,7 @@ fn main() {
     // `macro_rules! try_option {($x:expr) => (match $x {Some(x) => x, None => return})}`
     // Otherwise use try! with Result<T, E>
 
-    let create_result = DummyWindow::create(main_wnd_proc as WNDPROC);
+    let create_result: Win32Result<DummyWindow> = Win32Window::create(None, main_wnd_proc as WNDPROC);
 
     match create_result {
         Ok(mut dummy_window) => {
@@ -266,6 +159,7 @@ extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: 
         }
 
         WM_DESTROY => {
+            PostQuitMessage(0);
         }
 
         _ => {

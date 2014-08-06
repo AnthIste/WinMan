@@ -45,9 +45,20 @@ mod ffi {
             dwMessage: DWORD, lpdata: PNOTIFYICONDATA
         ) -> BOOL;
 
-        pub fn RegisterClassExW(
-            lpwcx: *const WNDCLASSEX
+        pub fn RegisterClassExA(
+            lpcx: *const WNDCLASSEXA
         ) -> ATOM;
+
+        pub fn RegisterClassExW(
+            lpwcx: *const WNDCLASSEXW
+        ) -> ATOM;
+
+        pub fn CreateWindowExA(
+            extrastyle: DWORD, classname: LPCSTR,
+            windowname: LPCSTR, style: DWORD,
+            x: c_int, y: c_int, width: c_int, height: c_int,
+            parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+        ) -> HWND;
 
         pub fn CreateWindowExW(
             extrastyle: DWORD, classname: LPCWSTR,
@@ -175,10 +186,25 @@ pub fn Shell_NotifyIcon(
     unsafe { ffi::Shell_NotifyIcon(dwMessage, lpdata) }
 }
 
+pub fn RegisterClassExA(
+    lpcx: *const WNDCLASSEXA
+) -> ATOM {
+    unsafe { ffi::RegisterClassExA(lpcx) }
+}
+
 pub fn RegisterClassExW(
-    lpwcx: *const WNDCLASSEX
+    lpwcx: *const WNDCLASSEXW
 ) -> ATOM {
     unsafe { ffi::RegisterClassExW(lpwcx) }
+}
+
+pub fn CreateWindowExA(
+    extrastyle: DWORD, classname: LPCSTR,
+    windowname: LPCSTR, style: DWORD,
+    x: c_int, y: c_int, width: c_int, height: c_int,
+    parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+) -> HWND {
+    unsafe { ffi::CreateWindowExA(extrastyle, classname, windowname, style, x, y, width, height, parent, menu, instance, param) }
 }
 
 pub fn CreateWindowExW(
