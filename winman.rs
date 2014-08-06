@@ -64,38 +64,38 @@ fn main() {
 
 extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
     unsafe {
-        let mut window = s_dummy_window.unwrap();
+        // Optionally handle the messages in user window
+        let handled = match s_dummy_window {
+            Some(mut window) => {
+                match msg {
+                    win32::constants::WM_CREATE => {
+                        window.on_create()
+                    }
 
-        let handled = match msg {
-            win32::constants::WM_CREATE => {
-                window.on_create()
+                    win32::constants::WM_DESTROY => {
+                        window.on_destroy()
+                    }
+
+                    win32::constants::WM_COMMAND => {
+                        window.on_command(LOWORD(wParam as DWORD))
+                    }
+
+                    user_command if user_command >= WM_USER => {
+                        window.on_user(msg, wParam, lParam)
+                    }
+
+                    _ => { None }
+                }
             }
 
-            win32::constants::WM_DESTROY => {
-                window.on_destroy()
-            }
-
-            win32::constants::WM_COMMAND => {
-                window.on_command(LOWORD(wParam as DWORD))
-            }
-
-            user_command if user_command >= WM_USER => {
-                window.on_user(msg, wParam, lParam)
-            }
-
-            _ => {
-                None
-            }
+            None => { None }
         };
 
+        // Return user result if possible, otherwise default
         match handled {
-            Some(b) => {
-                if b { 0 } else { 1 }
-            }
+            Some(b) => { if b { 0 } else { 1 } }
 
-            None => {
-                DefWindowProcW(hWnd, msg, wParam, lParam)
-            }
+            None => { DefWindowProcW(hWnd, msg, wParam, lParam) }
         }
     }
 }
