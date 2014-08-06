@@ -53,49 +53,37 @@ fn main() {
                 }
             }
 
-            MessageBoxA(0 as HWND, "All done!".to_c_str().as_ptr(), "Exiting".to_c_str().as_ptr(), 0);
+            let msg = "All done!".to_c_str();
+            let title = "Exiting".to_c_str();
+
+            MessageBoxA(0 as HWND, msg.as_ptr(), title.as_ptr(), 0);
         }
 
         Err(code) => {
-            MessageBoxA(0 as HWND, format!("We couldn't create a window becase of {:X} :<", code).to_c_str().as_ptr(), "Exiting".to_c_str().as_ptr(), 0);
+            let msg = format!("We couldn't create a window becase of {:X} :<", code).to_c_str();
+            let title = "Exiting".to_c_str();
+
+            MessageBoxA(0 as HWND, msg.as_ptr(), title.as_ptr(), 0);
         }
     }
 }
 
 extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
     unsafe {
-        // Optionally handle the messages in user window
-        let handled = match s_dummy_window {
+        let handled =
+        match s_dummy_window {
             Some(mut window) => {
                 match msg {
-                    win32::constants::WM_CREATE => {
-                        window.on_create()
-                    }
-
-                    win32::constants::WM_DESTROY => {
-                        window.on_destroy()
-                    }
-
-                    win32::constants::WM_COMMAND => {
-                        window.on_command(LOWORD(wParam as DWORD))
-                    }
-
-                    user_command if user_command >= WM_USER => {
-                        window.on_user(msg, wParam, lParam)
-                    }
-
+                    WM_CREATE               => window.on_create(),
+                    WM_DESTROY              => window.on_destroy(),
+                    WM_COMMAND              => window.on_command(LOWORD(wParam as DWORD)),
+                    user if user >= WM_USER => window.on_user(msg, wParam, lParam),
                     _ => { None }
                 }
             }
-
-            None => { None }
+            None => None
         };
 
-        // Return user result if possible, otherwise default
-        match handled {
-            Some(b) => { if b { 0 } else { 1 } }
-
-            None => { DefWindowProcW(hWnd, msg, wParam, lParam) }
-        }
+        handled.unwrap_or(DefWindowProcW(hWnd, msg, wParam, lParam))
     }
 }

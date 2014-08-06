@@ -2,7 +2,7 @@ use std::default::Default;
 
 use win32::constants::*;
 use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,LPVOID,LPCSTR,HICON,
-                   POINT,RECT,WPARAM,LPARAM,WORD};
+                   POINT,RECT,WPARAM,LPARAM,LRESULT,WORD};
 use win32::window::{PostQuitMessage,GetModuleHandleA,Shell_NotifyIcon,RegisterClassExA,CreateWindowExA,
                     GetLastError,LoadImageW,GetSystemMetrics,SetForegroundWindow,TrackPopupMenu,
                     CreatePopupMenu,AppendMenuA,GetCursorPos,DestroyWindow};
@@ -83,7 +83,6 @@ impl DummyWindow {
 
                 self.nid = Some(nid);
             }
-
             Some(_) => { }
         }
     }
@@ -94,7 +93,6 @@ impl DummyWindow {
                 Shell_NotifyIcon(NIM_DELETE, &mut nid);
                 self.nid = None;
             }
-
             None => { }
         }
     }
@@ -132,41 +130,34 @@ impl Win32Window for DummyWindow {
         self.hInstance
     }
 
-    fn on_destroy(&mut self) -> Option<bool> {
+    fn on_destroy(&mut self) -> Option<LRESULT> {
         self.deregister_systray_icon();
         PostQuitMessage(0);
         
-        Some(true)
+        Some(0)
     }
 
     #[allow(unused_variable)]
-    fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<bool> {
+    fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<LRESULT> {
         match msg {
             1234 => {
                 match lParam as UINT {
-                    WM_LBUTTONDBLCLK => {
-                        DestroyWindow(self.hWnd);
-                    }
-
-                    WM_RBUTTONDOWN | WM_CONTEXTMENU => {
-                        self.show_popup_menu();
-                    }
-
-                    _ => { }
+                    WM_LBUTTONDBLCLK                => { DestroyWindow(self.hWnd); },
+                    WM_RBUTTONDOWN | WM_CONTEXTMENU => self.show_popup_menu(),
+                    _                               => { }
                 }
             }
-
             _ => { return None; }
         }
 
-        Some(true)
+        Some(0)
     }
 
-    fn on_command(&mut self, command: WORD) -> Option<bool> {
+    fn on_command(&mut self, command: WORD) -> Option<LRESULT> {
         if command == 1 { // TM_EXIT
             DestroyWindow(self.hWnd);
         }
 
-        Some(true)
+        Some(0)
     }
 }
