@@ -244,6 +244,7 @@ pub struct POINT {
     pub y: LONG,
 }
 pub type PPOINT = *mut POINT;
+pub type LPPOINT = *mut POINT;
 
 pub struct MSG {
     pub hwnd: HWND,

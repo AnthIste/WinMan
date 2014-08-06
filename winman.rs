@@ -7,10 +7,11 @@ use std::iter::range_inclusive;
 
 use win32::constants::*;
 use win32::types::{HWND,MSG,UINT,DWORD,WORD,NOTIFYICONDATA,WNDCLASSEX,WNDPROC,WPARAM,LPARAM,LRESULT,HMENU,
-                   HINSTANCE,LPVOID,LPCWSTR,ULONG_PTR,HICON};
+                   HINSTANCE,LPVOID,LPCWSTR,ULONG_PTR,HICON,POINT,RECT};
 use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,RegisterHotKey,PostQuitMessage,
                     Shell_NotifyIcon,RegisterClassExW,DefWindowProcW,CreateWindowExW,GetLastError,LoadImageW,
-                    GetSystemMetrics,GetModuleHandleW};
+                    GetSystemMetrics,GetModuleHandleW,CreatePopupMenu,AppendMenuA,GetCursorPos,
+                    SetForegroundWindow,TrackPopupMenu};
 use win32::wstr::ToCWStr;
 
 // Consider moving to crate win32
@@ -84,6 +85,29 @@ fn register_systray_icon(hWnd: HWND) -> NOTIFYICONDATA {
 
 fn deregister_systray_icon(nid: &mut NOTIFYICONDATA) {
     Shell_NotifyIcon(NIM_DELETE, nid);
+}
+
+fn show_popup_menu(hWnd: HWND) {
+    let mut curPoint: POINT = Default::default();
+    GetCursorPos(&mut curPoint);
+
+    let hMenu = CreatePopupMenu();
+    AppendMenuA(
+        hMenu,
+        0, // MF_STRING
+        1, // TM_EXIT
+        "E&xit".to_c_str().as_ptr()
+        );
+
+    SetForegroundWindow(hWnd);
+
+    TrackPopupMenu(hMenu,
+                   0x80 | 0x4 | 0x20, // TPM_NONOTIFY | TPM_CENTERALIGN | TPM_BOTTOMALIGN,
+                   curPoint.x,
+                   curPoint.y,
+                   0,
+                   hWnd,
+                   0 as *mut RECT);
 }
 
 fn register_hotkeys() {
@@ -176,5 +200,10 @@ fn main() {
 }
 
 extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
+    if msg == 1234 {
+        show_popup_menu(hWnd);
+        return 0 as LRESULT;
+    }
+
     DefWindowProcW(hWnd, msg, wParam, lParam)
 }

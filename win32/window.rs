@@ -73,6 +73,28 @@ mod ffi {
         pub fn GetSystemMetrics(
             nIndex: c_int
         ) -> c_int;
+
+        pub fn CreatePopupMenu() -> HMENU;
+
+        pub fn AppendMenuA(
+            hMenu: HMENU, uFlags: UINT, uIDNewItem: UINT, lpNewItem: LPCSTR
+        ) -> BOOL;
+
+        pub fn AppendMenuW(
+            hMenu: HMENU, uFlags: UINT, uIDNewItem: UINT, lpNewItem: LPCWSTR
+        ) -> BOOL;
+
+        pub fn GetCursorPos(
+            lpPoint: LPPOINT
+        ) -> BOOL;
+
+        pub fn SetForegroundWindow(
+            hWnd: HWND
+        ) -> BOOL;
+
+        pub fn TrackPopupMenu(
+            hMenu: HMENU, uFlags: UINT, x: c_int, y: c_int, nReserved: c_int, hWnd: HWND, prcRect: *mut RECT
+        ) -> BOOL;
     }
 
     #[link(name = "kernel32")]
@@ -202,4 +224,38 @@ pub fn GetModuleHandleW(
     lpModuleName: LPCWSTR
 ) -> HMODULE {
     unsafe { ffi::GetModuleHandleW(lpModuleName) }
+}
+
+pub fn CreatePopupMenu() -> HMENU {
+    unsafe { ffi::CreatePopupMenu() }
+}
+
+pub fn AppendMenuA(
+    hMenu: HMENU, uFlags: UINT, uIDNewItem: UINT, lpNewItem: LPCSTR
+) -> BOOL {
+    unsafe { ffi::AppendMenuA(hMenu, uFlags, uIDNewItem, lpNewItem) }
+}
+
+pub fn AppendMenuW(
+    hMenu: HMENU, uFlags: UINT, uIDNewItem: UINT, lpNewItem: LPCWSTR
+) -> BOOL {
+    unsafe { ffi::AppendMenuW(hMenu, uFlags, uIDNewItem, lpNewItem) }
+}
+
+pub fn GetCursorPos(
+    lpPoint: LPPOINT
+) -> BOOL {
+    unsafe { ffi::GetCursorPos(lpPoint) }
+}
+
+pub fn SetForegroundWindow(
+    hWnd: HWND
+) -> BOOL {
+    unsafe { ffi::SetForegroundWindow(hWnd) }
+}
+
+pub fn TrackPopupMenu(
+    hMenu: HMENU, uFlags: UINT, x: c_int, y: c_int, nReserved: c_int, hWnd: HWND, prcRect: *mut RECT
+) -> BOOL {
+    unsafe { ffi::TrackPopupMenu(hMenu, uFlags, x, y, nReserved, hWnd, prcRect) }
 }
