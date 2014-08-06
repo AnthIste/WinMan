@@ -6,16 +6,18 @@ use std::default::Default;
 
 use win32::constants::*;
 use win32::types::{HWND,MSG,UINT,DWORD,WNDPROC,WPARAM,LPARAM,LRESULT};
-use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,PostQuitMessage,
-                    DefWindowProcW,DestroyWindow};
+use win32::window::{MessageBoxA,GetMessageW,TranslateMessage,DispatchMessageW,DefWindowProcW};
 use win32::macro::{LOWORD,HIWORD};
 
+use app::window::{Win32Window};
 use app::dummy::{DummyWindow};
 use app::hotkey::{HotkeyManager};
 
 // Consider moving to crate win32
 mod win32;
 mod app;
+
+static mut s_dummy_window: Option<DummyWindow> = None;
 
 fn main() {
     // https://github.com/rust-lang/rust/issues/13259
@@ -28,7 +30,10 @@ fn main() {
     let create_result = DummyWindow::create(None, main_wnd_proc as WNDPROC);
 
     match create_result {
-        Ok(_) => {
+        Ok(dummy_window) => {
+            // How better to map static WinMain? A channel?
+            unsafe { s_dummy_window = Some(dummy_window); }
+
             let hotkey_manager = HotkeyManager::new();            
             
             hotkey_manager.register_hotkeys();
@@ -58,36 +63,39 @@ fn main() {
 }
 
 extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
-    match msg {
-        1234 => {
-            match lParam as UINT {
-                WM_LBUTTONDBLCLK => {
-                    DestroyWindow(hWnd);
-                }
-                WM_RBUTTONDOWN | WM_CONTEXTMENU => {
-                    // show_popup_menu(hWnd);
-                }
-                _ => { }
+    unsafe {
+        let mut window = s_dummy_window.unwrap();
+
+        let handled = match msg {
+            win32::constants::WM_CREATE => {
+                window.on_create()
             }
-        }
 
-        WM_COMMAND => {
-            match LOWORD(wParam as DWORD) {
-                1 => { // TM_EXIT
-                    DestroyWindow(hWnd);
-                }
-                _ => { }
+            win32::constants::WM_DESTROY => {
+                window.on_destroy()
             }
-        }
 
-        WM_DESTROY => {
-            PostQuitMessage(0);
-        }
+            win32::constants::WM_COMMAND => {
+                window.on_command(LOWORD(wParam as DWORD))
+            }
 
-        _ => {
-            return DefWindowProcW(hWnd, msg, wParam, lParam);
+            user_command if user_command >= WM_USER => {
+                window.on_user(msg, wParam, lParam)
+            }
+
+            _ => {
+                None
+            }
+        };
+
+        match handled {
+            Some(b) => {
+                if b { 0 } else { 1 }
+            }
+
+            None => {
+                DefWindowProcW(hWnd, msg, wParam, lParam)
+            }
         }
     }
-
-    0 as LRESULT
 }

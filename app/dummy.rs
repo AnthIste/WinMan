@@ -2,10 +2,10 @@ use std::default::Default;
 
 use win32::constants::*;
 use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,LPVOID,LPCSTR,HICON,
-                   POINT,RECT};
+                   POINT,RECT,WPARAM,LPARAM,WORD};
 use win32::window::{PostQuitMessage,GetModuleHandleA,Shell_NotifyIcon,RegisterClassExA,CreateWindowExA,
                     GetLastError,LoadImageW,GetSystemMetrics,SetForegroundWindow,TrackPopupMenu,
-                    CreatePopupMenu,AppendMenuA,GetCursorPos};
+                    CreatePopupMenu,AppendMenuA,GetCursorPos,DestroyWindow};
 use win32::macro::{MAKEINTRESOURCEW};
 
 use app::window::{Win32Result,Win32Window};
@@ -61,7 +61,7 @@ impl DummyWindow {
         Ok(dummy_window)
     }
 
-    pub fn register_systray_icon(&mut self) {
+    fn register_systray_icon(&mut self) {
         match self.nid {
             None => {
                 let mut nid: NOTIFYICONDATA = Default::default();
@@ -88,7 +88,7 @@ impl DummyWindow {
         }
     }
 
-    pub fn deregister_systray_icon(&mut self) {
+    fn deregister_systray_icon(&mut self) {
         match self.nid {
             Some(mut nid) => {
                 Shell_NotifyIcon(NIM_DELETE, &mut nid);
@@ -99,7 +99,7 @@ impl DummyWindow {
         }
     }
 
-    pub fn show_popup_menu(&self) {
+    fn show_popup_menu(&self) {
         let mut curPoint: POINT = Default::default();
         GetCursorPos(&mut curPoint);
 
@@ -128,13 +128,45 @@ impl Win32Window for DummyWindow {
         self.hWnd
     }
 
-    fn get_hinstance(&self) -> Option<HINSTANCE> {
-        Some(self.hInstance)
+    fn get_hinstance(&self) -> HINSTANCE {
+        self.hInstance
     }
 
-    fn on_destroy(&mut self) -> bool {
+    fn on_destroy(&mut self) -> Option<bool> {
         self.deregister_systray_icon();
         PostQuitMessage(0);
-        true
+        
+        Some(true)
+    }
+
+    #[allow(unused_variable)]
+    fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<bool> {
+        match msg {
+            1234 => {
+                match lParam as UINT {
+                    WM_LBUTTONDBLCLK => {
+                        DestroyWindow(self.hWnd);
+                    }
+
+                    WM_RBUTTONDOWN | WM_CONTEXTMENU => {
+                        self.show_popup_menu();
+                    }
+
+                    _ => { }
+                }
+            }
+
+            _ => { return None; }
+        }
+
+        Some(true)
+    }
+
+    fn on_command(&mut self, command: WORD) -> Option<bool> {
+        if command == 1 { // TM_EXIT
+            DestroyWindow(self.hWnd);
+        }
+
+        Some(true)
     }
 }

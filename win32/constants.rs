@@ -1,11 +1,13 @@
 use win32::types::*;
 
+pub static WM_CREATE: UINT = 0x0001;
 pub static WM_DESTROY: UINT = 0x0002;
 pub static WM_COMMAND: UINT = 0x0111;
 pub static WM_CONTEXTMENU: UINT = 0x007B;
 pub static WM_LBUTTONDBLCLK: UINT = 0x0203;
 pub static WM_RBUTTONDOWN: UINT = 0x0204;
 pub static WM_HOTKEY: UINT = 0x0312;
+pub static WM_USER: UINT = 0x0400;
 
 pub static MOD_ALT: UINT = 0x0001;
 pub static MOD_CONTROL: UINT = 0x0002;
