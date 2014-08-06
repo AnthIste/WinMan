@@ -1,9 +1,11 @@
 use std::default::Default;
 
 use win32::constants::*;
-use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,LPVOID,LPCSTR,HICON};
+use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,LPVOID,LPCSTR,HICON,
+                   POINT,RECT};
 use win32::window::{PostQuitMessage,GetModuleHandleA,Shell_NotifyIcon,RegisterClassExA,CreateWindowExA,
-                    GetLastError,LoadImageW,GetSystemMetrics};
+                    GetLastError,LoadImageW,GetSystemMetrics,SetForegroundWindow,TrackPopupMenu,
+                    CreatePopupMenu,AppendMenuA,GetCursorPos};
 use win32::macro::{MAKEINTRESOURCEW};
 
 use app::window::{Win32Result,Win32Window};
@@ -95,6 +97,29 @@ impl DummyWindow {
 
             None => { }
         }
+    }
+
+    pub fn show_popup_menu(&self) {
+        let mut curPoint: POINT = Default::default();
+        GetCursorPos(&mut curPoint);
+
+        let hMenu = CreatePopupMenu();
+        AppendMenuA(
+            hMenu,
+            0, // MF_STRING
+            1, // TM_EXIT
+            "E&xit".to_c_str().as_ptr()
+            );
+
+        SetForegroundWindow(self.hWnd);
+
+        TrackPopupMenu(hMenu,
+                       0x80 | 0x4 | 0x20, // TPM_NONOTIFY | TPM_CENTERALIGN | TPM_BOTTOMALIGN,
+                       curPoint.x,
+                       curPoint.y,
+                       0,
+                       self.hWnd,
+                       0 as *mut RECT);
     }
 }
 
