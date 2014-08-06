@@ -34,7 +34,7 @@ fn main() {
             // How better to map static WinMain? A channel?
             unsafe { s_dummy_window = Some(dummy_window); }
 
-            let hotkey_manager = HotkeyManager::new();            
+            let hotkey_manager = HotkeyManager::new();
             
             hotkey_manager.register_hotkeys();
 
@@ -71,18 +71,13 @@ fn main() {
 extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
     unsafe {
         let handled =
-        match s_dummy_window {
-            Some(mut window) => {
-                match msg {
-                    WM_CREATE               => window.on_create(),
-                    WM_DESTROY              => window.on_destroy(),
-                    WM_COMMAND              => window.on_command(LOWORD(wParam as DWORD)),
-                    user if user >= WM_USER => window.on_user(msg, wParam, lParam),
-                    _ => { None }
-                }
-            }
-            None => None
-        };
+        s_dummy_window.and_then(|mut window| match msg {
+            WM_CREATE               => window.on_create(),
+            WM_DESTROY              => window.on_destroy(),
+            WM_COMMAND              => window.on_command(LOWORD(wParam as DWORD)),
+            user if user >= WM_USER => window.on_user(msg, wParam, lParam),
+            _ => { None }
+        });
 
         handled.unwrap_or(DefWindowProcW(hWnd, msg, wParam, lParam))
     }
