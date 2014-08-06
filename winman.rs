@@ -28,18 +28,18 @@ fn main() {
     // Otherwise use try! with Result<T, E>
 
     let dummy_window = DummyWindow::create(None, main_wnd_proc as WNDPROC);
+    
+    // How better to map static WinMain? A channel?
+    unsafe { s_dummy_window = dummy_window.unwrap_or(None); }
 
     match dummy_window {
         Ok(window) => {
-            // How better to map static WinMain? A channel?
-            unsafe { s_dummy_window = Some(window); }
-
+            // We have a window, prepare for hotkeys
             let hotkey_manager = HotkeyManager::new();
-            
             hotkey_manager.register_hotkeys();
 
+            // Process messages on the current thread
             let mut msg: MSG = Default::default();
-
             while GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
                 TranslateMessage(&mut msg);
                 DispatchMessageW(&mut msg);
@@ -53,6 +53,7 @@ fn main() {
                 }
             }
 
+            // Signal exit
             let msg = "All done!".to_c_str();
             let title = "Exiting".to_c_str();
 
