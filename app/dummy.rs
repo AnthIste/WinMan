@@ -97,6 +97,14 @@ impl DummyWindow {
         }
     }
 
+    fn on_trayicon_event(&mut self, event: UINT) {
+        match event {
+            WM_LBUTTONDBLCLK                => { DestroyWindow(self.hWnd); },
+            WM_RBUTTONDOWN | WM_CONTEXTMENU => self.show_popup_menu(),
+            _                               => { }
+        }
+    }
+
     fn show_popup_menu(&self) {
         let mut curPoint: POINT = Default::default();
         GetCursorPos(&mut curPoint);
@@ -137,25 +145,19 @@ impl Win32Window for DummyWindow {
         Some(0)
     }
 
-    #[allow(unused_variable)]
-    fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<LRESULT> {
-        match msg {
-            1234 => {
-                match lParam as UINT {
-                    WM_LBUTTONDBLCLK                => { DestroyWindow(self.hWnd); },
-                    WM_RBUTTONDOWN | WM_CONTEXTMENU => self.show_popup_menu(),
-                    _                               => { }
-                }
-            }
-            _ => { return None; }
+    fn on_command(&mut self, command: WORD) -> Option<LRESULT> {
+        if command == 1 { // TM_EXIT
+            DestroyWindow(self.hWnd);
         }
 
         Some(0)
     }
 
-    fn on_command(&mut self, command: WORD) -> Option<LRESULT> {
-        if command == 1 { // TM_EXIT
-            DestroyWindow(self.hWnd);
+    #[allow(unused_variable)]
+    fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<LRESULT> {
+        match msg {
+            1234 => self.on_trayicon_event(lParam as UINT),
+            _ => { return None; }
         }
 
         Some(0)

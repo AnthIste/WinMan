@@ -27,12 +27,12 @@ fn main() {
     // `macro_rules! try_option {($x:expr) => (match $x {Some(x) => x, None => return})}`
     // Otherwise use try! with Result<T, E>
 
-    let create_result = DummyWindow::create(None, main_wnd_proc as WNDPROC);
+    let dummy_window = DummyWindow::create(None, main_wnd_proc as WNDPROC);
 
-    match create_result {
-        Ok(dummy_window) => {
+    match dummy_window {
+        Ok(window) => {
             // How better to map static WinMain? A channel?
-            unsafe { s_dummy_window = Some(dummy_window); }
+            unsafe { s_dummy_window = Some(window); }
 
             let hotkey_manager = HotkeyManager::new();
             
@@ -58,7 +58,7 @@ fn main() {
 
             MessageBoxA(0 as HWND, msg.as_ptr(), title.as_ptr(), 0);
         }
-
+        
         Err(code) => {
             let msg = format!("We couldn't create a window becase of {:X} :<", code).to_c_str();
             let title = "Exiting".to_c_str();
