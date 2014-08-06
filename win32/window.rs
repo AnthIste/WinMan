@@ -95,6 +95,10 @@ mod ffi {
         pub fn TrackPopupMenu(
             hMenu: HMENU, uFlags: UINT, x: c_int, y: c_int, nReserved: c_int, hWnd: HWND, prcRect: *mut RECT
         ) -> BOOL;
+
+        pub fn DestroyWindow(
+            hWnd: HWND
+        ) -> BOOL;
     }
 
     #[link(name = "kernel32")]
@@ -258,4 +262,10 @@ pub fn TrackPopupMenu(
     hMenu: HMENU, uFlags: UINT, x: c_int, y: c_int, nReserved: c_int, hWnd: HWND, prcRect: *mut RECT
 ) -> BOOL {
     unsafe { ffi::TrackPopupMenu(hMenu, uFlags, x, y, nReserved, hWnd, prcRect) }
+}
+
+pub fn DestroyWindow(
+    hWnd: HWND
+) -> BOOL {
+    unsafe { ffi::DestroyWindow(hWnd) }
 }
