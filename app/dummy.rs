@@ -70,10 +70,11 @@ impl DummyWindow {
 impl Win32Window for DummyWindow {
     fn create(hInstance: Option<HINSTANCE>, wndProc: WNDPROC) -> Win32Result<DummyWindow> {
         let hInstance = hInstance.unwrap_or(GetModuleHandleA(0 as LPCSTR));
-        let mut wc: WNDCLASSEXA = Default::default();
+        let className = "MyMagicClassName".to_c_str();
 
+        let mut wc: WNDCLASSEXA = Default::default();
         wc.lpfnWndProc = wndProc;
-        wc.lpszClassName = "MyMagicClassName".to_c_str().as_ptr();
+        wc.lpszClassName = className.as_ptr();
 
         if RegisterClassExA(&wc) == 0 {
             return Err(GetLastError());
@@ -81,7 +82,7 @@ impl Win32Window for DummyWindow {
 
         let hWnd = CreateWindowExA(
             0,
-            "MyMagicClassName".to_c_str().as_ptr(),
+            className.as_ptr(),
             0 as LPCSTR,
             0,
             0,

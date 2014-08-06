@@ -54,15 +54,17 @@ mod ffi {
         ) -> ATOM;
 
         pub fn CreateWindowExA(
-            extrastyle: DWORD, classname: LPCSTR,
-            windowname: LPCSTR, style: DWORD,
+            extrastyle: DWORD,
+            classname: LPCSTR, windowname: LPCSTR,
+            style: DWORD,
             x: c_int, y: c_int, width: c_int, height: c_int,
             parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
         ) -> HWND;
 
         pub fn CreateWindowExW(
-            extrastyle: DWORD, classname: LPCWSTR,
-            windowname: LPCWSTR, style: DWORD,
+            extrastyle: DWORD,
+            classname: LPCWSTR, windowname: LPCWSTR,
+            style: DWORD,
             x: c_int, y: c_int, width: c_int, height: c_int,
             parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
         ) -> HWND;
@@ -196,6 +198,24 @@ pub fn RegisterClassExW(
     lpwcx: *const WNDCLASSEXW
 ) -> ATOM {
     unsafe { ffi::RegisterClassExW(lpwcx) }
+}
+
+pub fn CreateWindowA(
+    classname: LPCSTR, windowname: LPCSTR,
+    style: DWORD,
+    x: c_int, y: c_int, width: c_int, height: c_int,
+    parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+) -> HWND {
+    CreateWindowExA(0, classname, windowname, style, x, y, width, height, parent, menu, instance, param)
+}
+
+pub fn CreateWindowW(
+    classname: LPCWSTR, windowname: LPCWSTR,
+    style: DWORD,
+    x: c_int, y: c_int, width: c_int, height: c_int,
+    parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
+) -> HWND {
+    CreateWindowExW(0, classname, windowname, style, x, y, width, height, parent, menu, instance, param)
 }
 
 pub fn CreateWindowExA(
