@@ -37,10 +37,10 @@ impl HotkeyManager {
 
     pub fn process_hotkey(&mut self, hotkey: (UINT, UINT)) {
         match hotkey {
-            (MOD_APP, VK_Q)                                         => PostQuitMessage(0),
-            (MOD_GRAB, vk) if HotkeyManager::is_window_hotkey(vk)   => self.grab_window(vk),
-            (MOD_SWITCH, vk) if HotkeyManager::is_window_hotkey(vk) => self.switch_to_window(vk),
-            _                                                       => { }
+            (MOD_APP, VK_Q)  => PostQuitMessage(0),
+            (MOD_GRAB, vk)   => self.grab_window(vk),
+            (MOD_SWITCH, vk) => self.switch_to_window(vk),
+            _                => { }
         }
     }
 
@@ -60,9 +60,5 @@ impl HotkeyManager {
             }
             None => { }
         }
-    }
-
-    fn is_window_hotkey(vk: UINT) -> bool {
-        vk >= VK_1 && vk <= VK_9
     }
 }
