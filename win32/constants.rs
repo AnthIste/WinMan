@@ -1,5 +1,12 @@
 use win32::types::*;
 
+pub static SW_HIDE: c_int = 0;
+pub static SW_MAXIMIZE: c_int = 3;
+pub static SW_SHOWMAXIMIZED: c_int = 3;
+pub static SW_SHOW: c_int = 5;
+pub static SW_MINIMIZE: c_int = 6;
+pub static SW_RESTORE: c_int = 9;
+
 pub static WM_CREATE: UINT = 0x0001;
 pub static WM_DESTROY: UINT = 0x0002;
 pub static WM_COMMAND: UINT = 0x0111;

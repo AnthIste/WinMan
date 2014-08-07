@@ -1,19 +1,24 @@
+use std::collections::HashMap;
 use std::iter::range_inclusive;
 
 use win32::constants::*;
 use win32::types::{UINT,HWND};
-use win32::window::{RegisterHotKey,PostQuitMessage};
+use win32::window::{RegisterHotKey,PostQuitMessage,GetForegroundWindow,SetForegroundWindow,ShowWindow};
 
 static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
 static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
 static MOD_SWITCH: UINT = MOD_ALT;
 
 // TODO: store configs and grab state
-pub struct HotkeyManager;
+pub struct HotkeyManager {
+    mapped_windows: HashMap<UINT, HWND>,
+}
 
 impl HotkeyManager {
     pub fn new() -> HotkeyManager {
-        HotkeyManager
+        HotkeyManager {
+            mapped_windows: HashMap::new(),
+        }
     }
 
     pub fn register_hotkeys(&self) {
@@ -30,21 +35,30 @@ impl HotkeyManager {
         }
     }
 
-    pub fn process_hotkey(&self, hotkey: (UINT, UINT)) {
+    pub fn process_hotkey(&mut self, hotkey: (UINT, UINT)) {
         match hotkey {
-            (MOD_APP, VK_Q) => {
-                PostQuitMessage(0)
-            }
+            (MOD_APP, VK_Q)                                         => PostQuitMessage(0),
+            (MOD_GRAB, vk) if HotkeyManager::is_window_hotkey(vk)   => self.grab_window(vk),
+            (MOD_SWITCH, vk) if HotkeyManager::is_window_hotkey(vk) => self.switch_to_window(vk),
+            _                                                       => { }
+        }
+    }
 
-            (MOD_GRAB, vk) if HotkeyManager::is_window_hotkey(vk) => {
-                // Grab and map foreground window
-            }
+    fn grab_window(&mut self, vk: UINT) {
+        let foreground_window = GetForegroundWindow();
 
-            (MOD_SWITCH, vk) if HotkeyManager::is_window_hotkey(vk) => {
-                // Switch to mapped window
-            }
+        if foreground_window != 0 as HWND {
+            self.mapped_windows.insert(vk, foreground_window);
+        }
+    }
 
-            _ => { }
+    fn switch_to_window(&self, vk: UINT) {
+        match self.mapped_windows.find(&vk) {
+            Some(&hWnd) => {
+                ShowWindow(hWnd, SW_SHOW);
+                SetForegroundWindow(hWnd);
+            }
+            None => { }
         }
     }
 

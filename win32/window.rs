@@ -69,7 +69,9 @@ mod ffi {
             parent: HWND, menu: HMENU, instance: HINSTANCE, param: LPVOID
         ) -> HWND;
 
-        pub fn ShowWindow(hwnd: HWND, nCmdShow: c_int) -> BOOL;
+        pub fn ShowWindow(
+            hwnd: HWND, nCmdShow: c_int
+        ) -> BOOL;
 
         pub fn DefWindowProcW(
             hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM
@@ -112,6 +114,8 @@ mod ffi {
         pub fn DestroyWindow(
             hWnd: HWND
         ) -> BOOL;
+
+        pub fn GetForegroundWindow() -> HWND;
     }
 
     #[link(name = "kernel32")]
@@ -236,6 +240,13 @@ pub fn CreateWindowExW(
     unsafe { ffi::CreateWindowExW(extrastyle, classname, windowname, style, x, y, width, height, parent, menu, instance, param) }
 }
 
+pub fn ShowWindow(
+    hwnd: HWND, nCmdShow: c_int
+) -> BOOL {
+    unsafe { ffi::ShowWindow(hwnd, nCmdShow) }
+}
+
+
 pub fn DefWindowProcW(
     hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM
 ) -> LRESULT {
@@ -314,4 +325,8 @@ pub fn DestroyWindow(
     hWnd: HWND
 ) -> BOOL {
     unsafe { ffi::DestroyWindow(hWnd) }
+}
+
+pub fn GetForegroundWindow() -> HWND {
+    unsafe { ffi::GetForegroundWindow() }
 }

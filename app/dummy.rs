@@ -157,7 +157,7 @@ impl Win32Window for DummyWindow {
     fn on_user(&mut self, msg: UINT, wParam: WPARAM, lParam: LPARAM) -> Option<LRESULT> {
         match msg {
             1234 => self.on_trayicon_event(lParam as UINT),
-            _ => { return None; }
+            _    => { return None; }
         }
 
         Some(0)

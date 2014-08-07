@@ -17,6 +17,7 @@ use app::hotkey::{HotkeyManager};
 mod win32;
 mod app;
 
+// Allow mapping between static WndProc and window instance
 static mut s_dummy_window: Option<DummyWindow> = None;
 
 fn main() {
@@ -28,30 +29,10 @@ fn main() {
     // Otherwise use try! with Result<T, E>
 
     let dummy_window = DummyWindow::create(None, main_wnd_proc as WNDPROC);
-    
-    // How better to map static WinMain? A channel?
-    unsafe { s_dummy_window = dummy_window.unwrap_or(None); }
 
     match dummy_window {
         Ok(window) => {
-            // We have a window, prepare for hotkeys
-            let hotkey_manager = HotkeyManager::new();
-            hotkey_manager.register_hotkeys();
-
-            // Process messages on the current thread
-            let mut msg: MSG = Default::default();
-            while GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
-                TranslateMessage(&mut msg);
-                DispatchMessageW(&mut msg);
-
-                // Hotkeys are sent to the thread, not the window
-                if msg.message == WM_HOTKEY {
-                    let modifiers = LOWORD(msg.lParam as DWORD) as UINT;
-                    let vk = HIWORD(msg.lParam as DWORD) as UINT;
-
-                    hotkey_manager.process_hotkey((modifiers, vk));
-                }
-            }
+            run_application(window);
 
             // Signal exit
             let msg = "All done!".to_c_str();
@@ -59,12 +40,32 @@ fn main() {
 
             MessageBoxA(0 as HWND, msg.as_ptr(), title.as_ptr(), 0);
         }
-        
         Err(code) => {
-            let msg = format!("We couldn't create a window becase of {:X} :<", code).to_c_str();
+            let msg = format!("We couldn't create a window becase of {} :<", code).to_c_str();
             let title = "Exiting".to_c_str();
 
             MessageBoxA(0 as HWND, msg.as_ptr(), title.as_ptr(), 0);
+        }
+    }
+}
+
+fn run_application(window: DummyWindow) {
+    let mut hotkey_manager = HotkeyManager::new();
+    let mut msg: MSG = Default::default();
+
+    hotkey_manager.register_hotkeys();
+    unsafe { s_dummy_window = Some(window); }
+
+    while GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
+        TranslateMessage(&mut msg);
+        DispatchMessageW(&mut msg);
+
+        // Hotkeys are sent to the thread, not the window
+        if msg.message == WM_HOTKEY {
+            let modifiers = LOWORD(msg.lParam as DWORD) as UINT;
+            let vk = HIWORD(msg.lParam as DWORD) as UINT;
+
+            hotkey_manager.process_hotkey((modifiers, vk));
         }
     }
 }
@@ -77,7 +78,7 @@ extern "system" fn main_wnd_proc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: 
             WM_DESTROY              => window.on_destroy(),
             WM_COMMAND              => window.on_command(LOWORD(wParam as DWORD)),
             user if user >= WM_USER => window.on_user(msg, wParam, lParam),
-            _ => { None }
+            _                       => { None }
         });
 
         handled.unwrap_or(DefWindowProcW(hWnd, msg, wParam, lParam))
