@@ -227,7 +227,7 @@ pub type QWORD = u64; // unsigned __int64
 
 // additional types used in common now
 
-#[deriving(Default)]
+#[derive(Default)]
 pub struct RECT {
     pub left: LONG,
     pub top: LONG,
@@ -238,7 +238,7 @@ pub type PRECT = *mut RECT;
 pub type LPRECT = *mut RECT;
 pub type LPCRECT = *const RECT;
 
-#[deriving(Default)]
+#[derive(Default)]
 pub struct POINT {
     pub x: LONG,
     pub y: LONG,
@@ -274,7 +274,7 @@ pub struct GUID {
     pub Data1: DWORD,
     pub Data2: WORD,
     pub Data3: WORD,
-    pub Data4: [BYTE, ..8],
+    pub Data4: [BYTE; 8],
 }
 
 impl Default for GUID {
@@ -283,7 +283,7 @@ impl Default for GUID {
             Data1: 0,
             Data2: 0,
             Data3: 0,
-            Data4: [0, ..8],
+            Data4: [0; 8],
         }
     }
 }
@@ -297,9 +297,9 @@ pub struct NOTIFYICONDATA {
     pub uFlags: UINT,
     pub uCallbackMessage: UINT,
     pub hIcon: HICON,
-    pub szInfo: [c_char, ..256],     // TCHAR[256]
+    pub szInfo: [c_char; 256],     // TCHAR[256]
     pub uTimeout_uVersion: UINT,     // union
-    pub szInfoTitle: [c_char, ..64], // TCHAR[64]
+    pub szInfoTitle: [c_char; 64], // TCHAR[64]
     pub dwInfoFlags: DWORD,
     pub guidItem: GUID,
     pub hBalloonIcon: HICON,
@@ -315,9 +315,9 @@ impl Default for NOTIFYICONDATA {
             uFlags: 0,
             uCallbackMessage: 0,
             hIcon: 0 as HICON,
-            szInfo: [0, ..256],
+            szInfo: [0; 256],
             uTimeout_uVersion: 0,
-            szInfoTitle: [0, ..64],
+            szInfoTitle: [0; 64],
             dwInfoFlags: 0,
             guidItem: Default::default(),
             hBalloonIcon: 0 as HICON,
