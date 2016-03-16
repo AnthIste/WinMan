@@ -1,0 +1,15 @@
+[package]
+
+name = "winman"
+version = "0.0.1"
+authors = [
+	"Ruben Bakker <rubenbak@gmail.com>"
+]
+build="build.rs"
+
+[[bin]]
+name = "winman"
+path = "src/winman.rs"
+
+[dependencies]
+winapi = "0.2.6"
