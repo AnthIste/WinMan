@@ -13,3 +13,5 @@ path = "src/winman.rs"
 
 [dependencies]
 winapi = "0.2.6"
+kernel32-sys = "0.2.1"
+user32-sys = "0.1.2"
