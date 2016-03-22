@@ -14,6 +14,11 @@ use winapi::winuser::*;
 
 use constants::*;
 
+// Hotkey modifiers
+const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
+const MOD_GRAB_WINDOW: UINT = MOD_ALT | MOD_SHIFT;
+const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
+
 type Win32Result<T> = Result<T, DWORD>;
 
 pub fn main() {
@@ -32,6 +37,8 @@ pub fn main() {
     // Window creation
     unsafe {
         let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
+        register_hotkeys(hwnd);
+        
         let mut msg: MSG = MSG {
             hwnd: hwnd,
             message: 0,
@@ -41,14 +48,11 @@ pub fn main() {
             pt: POINT { x: 0, y: 0 },
         };
 
-        register_hotkeys(hwnd);
-
         while user32::GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
         }
     }
-
 }
 
 unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
@@ -97,47 +101,75 @@ unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
 unsafe fn register_hotkeys(hwnd: HWND) {
     // Virtual key codes: https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
     // CTRL-ALT-Q to quit
-    user32::RegisterHotKey(hwnd, 0, MOD_ALT | MOD_CONTROL, VK_Q);
+    user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, VK_Q);
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
     for i in 1..9 {
         let vk_n = VK_0 + i;
 
-        user32::RegisterHotKey(hwnd, 1, MOD_ALT | MOD_SHIFT, vk_n);
-        user32::RegisterHotKey(hwnd, 2, MOD_ALT, vk_n);
+        user32::RegisterHotKey(hwnd, 1, MOD_GRAB_WINDOW, vk_n);
+        user32::RegisterHotKey(hwnd, 2, MOD_SWITCH_WINDOW, vk_n);
+    }
+}
+
+unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
+    match (modifiers, vk) {
+        (MOD_APPCOMMAND, VK_Q) => {
+            user32::PostQuitMessage(0);
+            Some(0)
+        },
+
+        (MOD_GRAB_WINDOW, vk)
+            if vk >= VK_0 && vk <= VK_9
+            => {
+            // grab_window(vk as u32);
+            Some(0)
+        },
+
+        (MOD_SWITCH_WINDOW, vk)
+            if vk >= VK_0 && vk <= VK_9
+            => {
+            // switch_window(vk as u32);
+            Some(0)
+        },
+
+        _ => None
+    }
+}
+
+unsafe fn on_command(hwnd: HWND, command: UINT) -> Option<LRESULT> {
+    match command {
+        1 => {
+            user32::DestroyWindow(hwnd);
+            Some(0)
+        },
+        
+        _ => None
     }
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = match msg {
-        WM_CREATE => Some(0),
+        WM_HOTKEY => {
+            let modifiers = LOWORD(lparam as DWORD);
+            let vk = HIWORD(lparam as DWORD);
+
+            on_hotkey(modifiers as UINT, vk as UINT)
+        },
+
+        WM_COMMAND => {
+            let command = LOWORD(wparam as DWORD);
+            
+            on_command(hwnd, command as UINT)
+        },
         
+        user if user >= WM_USER => Some(0),
+
         WM_DESTROY => {
             user32::PostQuitMessage(0);
             Some(0)
         },
-        
-        WM_COMMAND => {
-            let command = LOWORD(wparam as DWORD);
-
-            // Tray commands
-            if command == 1 {
-                user32::DestroyWindow(hwnd);
-            }
-
-            Some(0)
-        },
-
-        WM_HOTKEY => {
-            let _modifiers = LOWORD(lparam as DWORD);
-            let _vk = HIWORD(lparam as DWORD);
-
-            // hotkey_manager.process_hotkey((modifiers, vk));
-            Some(0)
-        }
-        
-        user if user >= WM_USER => Some(0),
         
         _ => None
     };
