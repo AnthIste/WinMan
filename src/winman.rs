@@ -15,16 +15,43 @@ type Win32Result<T> = Result<T, DWORD>;
 pub fn main() {
 	println!("Hello Windows!");
 
-    let _window = unsafe { create_window(Some(window_proc)) };
-	let foreground_window = unsafe { user32::GetForegroundWindow() };
+    // API demo
+    unsafe {
+        let foreground_window = user32::GetForegroundWindow();
+        println!("{:?}", foreground_window);
 
-	println!("{:?}", foreground_window);
+        user32::ShowWindow(foreground_window, SW_HIDE);
+        kernel32::Sleep(1000);
+        user32::ShowWindow(foreground_window, SW_SHOW);
+    }
 
-	unsafe {
-		user32::ShowWindow(foreground_window, SW_HIDE);
-		kernel32::Sleep(1000);
-		user32::ShowWindow(foreground_window, SW_SHOW);
-	}
+    // Window creation
+    unsafe {
+        let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
+        let mut msg: MSG = MSG {
+            hwnd: hwnd,
+            message: 0,
+            wParam: 0 as WPARAM,
+            lParam: 0 as LPARAM,
+            time: 0,
+            pt: POINT { x: 0, y: 0 },
+        };
+
+        while user32::GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
+            user32::TranslateMessage(&mut msg);
+            user32::DispatchMessageW(&mut msg);
+
+            // Hotkeys are sent to the thread, not the window, so they
+            // cannot be handled in WNDPROC
+            // if msg.message == WM_HOTKEY {
+            //     let modifiers = LOWORD(msg.lParam as DWORD) as UINT;
+            //     let vk = HIWORD(msg.lParam as DWORD) as UINT;
+
+            //     hotkey_manager.process_hotkey((modifiers, vk));
+            // }
+        }
+    }
+
 }
 
 unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
@@ -72,11 +99,27 @@ unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = match msg {
-        WM_CREATE               => Some(0),
-        WM_DESTROY              => Some(0),
-        WM_COMMAND              => Some(0),
+        WM_CREATE => Some(0),
+        
+        WM_DESTROY => {
+            user32::PostQuitMessage(0);
+            Some(0)
+        },
+        
+        WM_COMMAND => {
+            let command = LOWORD(wparam as DWORD);
+
+            // Tray commands
+            if command == 1 {
+                user32::DestroyWindow(hwnd);
+            }
+
+            Some(0)
+        },
+        
         user if user >= WM_USER => Some(0),
-        _                       => None
+        
+        _ => None
     };
 
     lresult.unwrap_or(user32::DefWindowProcW(hwnd, msg, wparam, lparam))
