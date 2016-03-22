@@ -15,6 +15,7 @@ type Win32Result<T> = Result<T, DWORD>;
 pub fn main() {
 	println!("Hello Windows!");
 
+    let _window = unsafe { create_window(Some(window_proc)) };
 	let foreground_window = unsafe { user32::GetForegroundWindow() };
 
 	println!("{:?}", foreground_window);
@@ -26,14 +27,13 @@ pub fn main() {
 	}
 }
 
-fn _create_window() -> Win32Result<()> {
-	// TODO: convert this to *const u16 ?? https://www.reddit.com/r/rust/comments/37k1ij/converting_str_to_utf16/
+unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
 	let class_name: Vec<u16> = OsStr::new("MyMagicClassName").encode_wide().collect();
 
-    let _window_class = WNDCLASSEXW {
+    let window_class = WNDCLASSEXW {
     	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
     	style: 0,
-    	lpfnWndProc: Some(_window_proc),
+    	lpfnWndProc: window_proc,
     	cbClsExtra: 0,
     	cbWndExtra: 0,
     	hInstance: 0 as HINSTANCE,
@@ -44,34 +44,33 @@ fn _create_window() -> Win32Result<()> {
     	lpszClassName: class_name.as_ptr(),
     	hIconSm: 0 as HICON,
     };
- //    wc.lpfnWndProc = wndProc;
- //    wc.lpszClassName = className.as_ptr();
 
- //    if RegisterClassExA(&wc) == 0 {
- //        return Err(GetLastError());
- //    }
+    if user32::RegisterClassExW(&window_class) == 0 {
+        return Err(kernel32::GetLastError());
+    }
 
- //    let hWnd = CreateWindowExA(
- //        0,
- //        className.as_ptr(),
- //        0 as LPCSTR,
- //        0,
- //        0,
- //        0,
- //        0,
- //        0,
- //        0 as HWND,
- //        0 as HMENU,
- //        hInstance,
- //        0 as LPVOID);
+    let hwnd = user32::CreateWindowExW(
+        0,
+        class_name.as_ptr(),
+        0 as LPCWSTR,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0 as HWND,
+        0 as HMENU,
+        0 as HINSTANCE,
+        0 as LPVOID);
 
- //    if hWnd == 0 as HWND {
- //        return Err(GetLastError());
- //    }
-    Ok(())
+    if hwnd == 0 as HWND {
+        return Err(kernel32::GetLastError());
+    }
+
+    Ok(hwnd)
 }
 
-unsafe extern "system" fn _window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = match msg {
         WM_CREATE               => Some(0),
         WM_DESTROY              => Some(0),
