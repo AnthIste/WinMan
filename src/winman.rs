@@ -2,6 +2,8 @@ extern crate winapi;
 extern crate kernel32;
 extern crate user32;
 
+mod constants;
+
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 
@@ -9,6 +11,8 @@ use winapi::minwindef::*;
 use winapi::windef::*;
 use winapi::winnt::*;
 use winapi::winuser::*;
+
+use constants::*;
 
 type Win32Result<T> = Result<T, DWORD>;
 
@@ -37,18 +41,11 @@ pub fn main() {
             pt: POINT { x: 0, y: 0 },
         };
 
+        register_hotkeys(hwnd);
+
         while user32::GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
-
-            // Hotkeys are sent to the thread, not the window, so they
-            // cannot be handled in WNDPROC
-            // if msg.message == WM_HOTKEY {
-            //     let modifiers = LOWORD(msg.lParam as DWORD) as UINT;
-            //     let vk = HIWORD(msg.lParam as DWORD) as UINT;
-
-            //     hotkey_manager.process_hotkey((modifiers, vk));
-            // }
         }
     }
 
@@ -97,6 +94,21 @@ unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
     Ok(hwnd)
 }
 
+unsafe fn register_hotkeys(hwnd: HWND) {
+    // Virtual key codes: https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
+    // CTRL-ALT-Q to quit
+    user32::RegisterHotKey(hwnd, 0, MOD_ALT | MOD_CONTROL, VK_Q);
+
+    // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
+    // ALT-1 to ALT-9 to switch windows
+    for i in 1..9 {
+        let vk_n = VK_0 + i;
+
+        user32::RegisterHotKey(hwnd, 1, MOD_ALT | MOD_SHIFT, vk_n);
+        user32::RegisterHotKey(hwnd, 2, MOD_ALT, vk_n);
+    }
+}
+
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = match msg {
         WM_CREATE => Some(0),
@@ -116,6 +128,14 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 
             Some(0)
         },
+
+        WM_HOTKEY => {
+            let _modifiers = LOWORD(lparam as DWORD);
+            let _vk = HIWORD(lparam as DWORD);
+
+            // hotkey_manager.process_hotkey((modifiers, vk));
+            Some(0)
+        }
         
         user if user >= WM_USER => Some(0),
         
