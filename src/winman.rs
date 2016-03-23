@@ -194,13 +194,13 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             
             on_command(hwnd, command as UINT)
         },
-        
-        user if user >= WM_USER => Some(0),
 
         WM_DESTROY => {
             user32::PostQuitMessage(0);
             Some(0)
         },
+        
+        user if user >= WM_USER => Some(0),
         
         _ => None
     };
