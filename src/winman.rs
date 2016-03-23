@@ -132,9 +132,7 @@ unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
             Some(0)
         },
 
-        (MOD_GRAB_WINDOW, vk)
-            if vk >= VK_0 && vk <= VK_9
-            => {
+        (MOD_GRAB_WINDOW, vk) => {
             let tracked_window = window_tracking::get_foreground_window();
 
             if let Ok(tracked_window) = tracked_window {
@@ -150,9 +148,7 @@ unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
             Some(0)
         },
 
-        (MOD_SWITCH_WINDOW, vk)
-            if vk >= VK_0 && vk <= VK_9
-            => {
+        (MOD_SWITCH_WINDOW, vk) => {
             // switch_window(vk as u32);
             Some(0)
         },
