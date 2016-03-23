@@ -1,20 +1,27 @@
 use std::collections::HashMap;
 use std::default::Default;
+use std::ffi::OsString;
 use std::mem;
+use std::os::windows::ffi::OsStringExt;
 
+use kernel32;
+use user32;
 use winapi::minwindef::*;
 use winapi::windef::*;
+use winapi::winnt::*;
 use winapi::basetsd::*;
 
 use utils::Win32Result;
 
+const MAX_TITLE_LEN: usize = 128;
+
 pub struct TrackedWindow {
     uint_hwnd: UINT_PTR,
-    title: Option<String>,
+    title: Option<OsString>,
 }
 
 impl TrackedWindow {
-	pub unsafe fn new(hwnd: HWND, title: String) -> Self {
+	pub unsafe fn new(hwnd: HWND, title: OsString) -> Self {
 		TrackedWindow {
 			uint_hwnd: mem::transmute(hwnd),
 			title: Some(title),
@@ -26,8 +33,9 @@ impl TrackedWindow {
 	}
 
 	pub fn title(&self) -> Option<&str> {
+		// self.title.and_then(|t| t.to_str())
 		match self.title {
-			Some(ref s) => Some(&s),
+			Some(ref t) => t.to_str(),
 			None => None
 		}
 	}
@@ -56,13 +64,19 @@ impl Config {
 }
 
 pub unsafe fn get_foreground_window() -> Win32Result<TrackedWindow> {
-	let foreground_window = ::user32::GetForegroundWindow();
+	let foreground_window = user32::GetForegroundWindow();
 
 	if foreground_window == 0 as HWND {
-		return Err(::kernel32::GetLastError());
+		return Err(kernel32::GetLastError());
 	}
 
-	let tracked_window = TrackedWindow::new(foreground_window, "".to_string());
+	let mut title = [0 as WCHAR; MAX_TITLE_LEN];
+	if user32::GetWindowTextW(foreground_window, title.as_mut_ptr(), MAX_TITLE_LEN as i32) == 0 {
+		return Err(kernel32::GetLastError());
+	}
+	
+	let title = OsStringExt::from_wide(&title);
+	let tracked_window = TrackedWindow::new(foreground_window, title);
 
 	Ok(tracked_window)
 }
