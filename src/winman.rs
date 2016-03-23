@@ -1,11 +1,18 @@
+#[macro_use]
+extern crate lazy_static;
+
 extern crate winapi;
 extern crate kernel32;
 extern crate user32;
 
 mod constants;
+mod utils;
+mod window_tracking;
 
+use std::default::Default;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::sync::Mutex;
 
 use winapi::minwindef::*;
 use winapi::windef::*;
@@ -13,13 +20,18 @@ use winapi::winnt::*;
 use winapi::winuser::*;
 
 use constants::*;
+use utils::Win32Result;
+use window_tracking::Config;
 
 // Hotkey modifiers
 const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
 const MOD_GRAB_WINDOW: UINT = MOD_ALT | MOD_SHIFT;
 const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
 
-type Win32Result<T> = Result<T, DWORD>;
+// Runtime data - everything is static
+lazy_static! {
+    static ref CONFIG: Mutex<Config> = Mutex::new(Default::default());
+}
 
 pub fn main() {
 	println!("Hello Windows!");
@@ -123,7 +135,12 @@ unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
         (MOD_GRAB_WINDOW, vk)
             if vk >= VK_0 && vk <= VK_9
             => {
-            // grab_window(vk as u32);
+            let tracked_window = window_tracking::get_foreground_window();
+
+            if let Ok(tracked_window) = tracked_window {
+                CONFIG.lock().unwrap().track_window(modifiers, vk, tracked_window);
+            }
+
             Some(0)
         },
 
