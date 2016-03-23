@@ -138,7 +138,13 @@ unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
             let tracked_window = window_tracking::get_foreground_window();
 
             if let Ok(tracked_window) = tracked_window {
-                CONFIG.lock().unwrap().track_window(modifiers, vk, tracked_window);
+                let mut config = CONFIG.lock().unwrap();
+
+                println!("Tracking foreground window {:?}: {}",
+                    tracked_window.hwnd(),
+                    tracked_window.title().unwrap_or("No title"));
+                
+                config.track_window(modifiers, vk, tracked_window);
             }
 
             Some(0)
