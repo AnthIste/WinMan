@@ -127,29 +127,41 @@ unsafe fn register_hotkeys(hwnd: HWND) {
 
 unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
     match (modifiers, vk) {
+        // Hotkey: Quit
         (MOD_APPCOMMAND, VK_Q) => {
             user32::PostQuitMessage(0);
             Some(0)
         },
 
+        // Hotkey: Grab a window
         (MOD_GRAB_WINDOW, vk) => {
+            let mut config = CONFIG.lock().unwrap();
             let tracked_window = window_tracking::get_foreground_window();
 
             if let Ok(tracked_window) = tracked_window {
-                let mut config = CONFIG.lock().unwrap();
-
                 println!("Tracking foreground window {:?}: {}",
                     tracked_window.hwnd(),
                     tracked_window.title().unwrap_or("No title"));
                 
-                config.track_window(modifiers, vk, tracked_window);
+                config.track_window(vk, tracked_window);
             }
 
             Some(0)
         },
 
-        (MOD_SWITCH_WINDOW, vk) => {
-            // switch_window(vk as u32);
+        // Hotkey: Switch to a grabbed window
+        (MOD_SWITCH_WINDOW, _vk) => {
+            let mut config = CONFIG.lock().unwrap();
+            let tracked_window = config.get_tracked_window(vk);
+
+            if let Some(tracked_window) = tracked_window {
+                println!("Switching to tracked window {:?}: {}",
+                    tracked_window.hwnd(),
+                    tracked_window.title().unwrap_or("No title"));
+
+                window_tracking::set_foreground_window(tracked_window.hwnd()).ok();
+            }
+
             Some(0)
         },
 

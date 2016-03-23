@@ -13,7 +13,7 @@ use winapi::basetsd::*;
 
 use utils::Win32Result;
 
-const MAX_TITLE_LEN: usize = 128;
+const MAX_TITLE_LEN: usize = 256;
 
 pub struct TrackedWindow {
     uint_hwnd: UINT_PTR,
@@ -33,7 +33,6 @@ impl TrackedWindow {
 	}
 
 	pub fn title(&self) -> Option<&str> {
-		// self.title.and_then(|t| t.to_str())
 		match self.title {
 			Some(ref t) => t.to_str(),
 			None => None
@@ -52,14 +51,16 @@ impl Default for TrackedWindow {
 
 #[derive(Default)]
 pub struct Config {
-    tracked_windows: HashMap<(UINT, UINT), TrackedWindow>,
+    tracked_windows: HashMap<UINT, TrackedWindow>,
 }
 
 impl Config {
-	pub fn track_window(&mut self, modifiers: UINT, vk: UINT, tracked_window: TrackedWindow) {
-		let key = (modifiers, vk);
+	pub fn track_window(&mut self, vk: UINT, tracked_window: TrackedWindow) {
+		self.tracked_windows.insert(vk, tracked_window);
+	}
 
-		self.tracked_windows.insert(key, tracked_window);
+	pub fn get_tracked_window(&mut self, vk: UINT) -> Option<&TrackedWindow> {
+		self.tracked_windows.get(&vk)
 	}
 }
 
@@ -79,4 +80,12 @@ pub unsafe fn get_foreground_window() -> Win32Result<TrackedWindow> {
 	let tracked_window = TrackedWindow::new(foreground_window, title);
 
 	Ok(tracked_window)
+}
+
+pub unsafe fn set_foreground_window(hwnd: HWND) -> Win32Result<()> {
+	if user32::SetForegroundWindow(hwnd) == 0 {
+		return Err(kernel32::GetLastError());
+	}
+
+	Ok(())
 }

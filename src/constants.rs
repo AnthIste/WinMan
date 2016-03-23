@@ -13,6 +13,7 @@ pub const MOD_WIN: UINT = 0x0008;
 
 // Virtual key codes:
 // https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
+
 pub const VK_0: UINT = 0x30;
 pub const VK_1: UINT = 0x31;
 pub const VK_2: UINT = 0x32;
