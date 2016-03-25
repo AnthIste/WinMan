@@ -1,7 +1,5 @@
 use std::collections::HashMap;
-use std::default::Default;
 use std::ffi::OsString;
-use std::mem;
 use std::os::windows::ffi::OsStringExt;
 
 use kernel32;
@@ -9,42 +7,32 @@ use user32;
 use winapi::minwindef::*;
 use winapi::windef::*;
 use winapi::winnt::*;
-use winapi::basetsd::*;
 
-use utils::Win32Result;
+use utils::{SendHandle, Win32Result};
 
 const MAX_TITLE_LEN: usize = 256;
 
 pub struct TrackedWindow {
-    uint_hwnd: UINT_PTR,
+    hwnd: SendHandle<HWND>,
     title: Option<OsString>,
 }
 
 impl TrackedWindow {
 	pub unsafe fn new(hwnd: HWND, title: OsString) -> Self {
 		TrackedWindow {
-			uint_hwnd: mem::transmute(hwnd),
+			hwnd: SendHandle::new(hwnd),
 			title: Some(title),
 		}
 	}
 
 	pub unsafe fn hwnd(&self) -> HWND {
-		mem::transmute(self.uint_hwnd)
+		self.hwnd.handle()
 	}
 
 	pub fn title(&self) -> Option<&str> {
 		match self.title {
 			Some(ref t) => t.to_str(),
 			None => None
-		}
-	}
-}
-
-impl Default for TrackedWindow {
-	fn default() -> Self {
-		TrackedWindow {
-			uint_hwnd: 0,
-			title: None,
 		}
 	}
 }
