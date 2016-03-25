@@ -44,20 +44,20 @@ fn load_config() -> Option<Config> {
 pub fn main() {
 	println!("Hello Windows!");
 
-    // Window creation
-    unsafe {
-        let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
-        register_hotkeys(hwnd);
-        
-        let mut msg: MSG = MSG {
-            hwnd: hwnd,
-            message: 0,
-            wParam: 0 as WPARAM,
-            lParam: 0 as LPARAM,
-            time: 0,
-            pt: POINT { x: 0, y: 0 },
-        };
+    let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
+    
+    register_hotkeys(hwnd);
+    
+    let mut msg: MSG = MSG {
+        hwnd: hwnd,
+        message: 0,
+        wParam: 0 as WPARAM,
+        lParam: 0 as LPARAM,
+        time: 0,
+        pt: POINT { x: 0, y: 0 },
+    };
 
+    unsafe {
         while user32::GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
@@ -65,69 +65,75 @@ pub fn main() {
     }
 }
 
-unsafe fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
-	let class_name: Vec<u16> = OsStr::new("MyMagicClassName").encode_wide().collect();
+fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
+    let class_name: Vec<u16> = OsStr::new("WinmanMainWindow").encode_wide().collect();
+    
+    let hwnd = unsafe {
+        let window_class = WNDCLASSEXW {
+        	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+        	style: 0,
+        	lpfnWndProc: window_proc,
+        	cbClsExtra: 0,
+        	cbWndExtra: 0,
+        	hInstance: 0 as HINSTANCE,
+        	hIcon: 0 as HICON,
+        	hCursor: 0 as HCURSOR,
+        	hbrBackground: 0 as HBRUSH,
+        	lpszMenuName: 0 as LPCWSTR,
+        	lpszClassName: class_name.as_ptr(),
+        	hIconSm: 0 as HICON,
+        };
 
-    let window_class = WNDCLASSEXW {
-    	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-    	style: 0,
-    	lpfnWndProc: window_proc,
-    	cbClsExtra: 0,
-    	cbWndExtra: 0,
-    	hInstance: 0 as HINSTANCE,
-    	hIcon: 0 as HICON,
-    	hCursor: 0 as HCURSOR,
-    	hbrBackground: 0 as HBRUSH,
-    	lpszMenuName: 0 as LPCWSTR,
-    	lpszClassName: class_name.as_ptr(),
-    	hIconSm: 0 as HICON,
+        if user32::RegisterClassExW(&window_class) == 0 {
+            return Err(kernel32::GetLastError());
+        }
+
+        let hwnd = user32::CreateWindowExW(
+            0,
+            class_name.as_ptr(),
+            0 as LPCWSTR,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0 as HWND,
+            0 as HMENU,
+            0 as HINSTANCE,
+            0 as LPVOID);
+
+        if hwnd == 0 as HWND {
+            return Err(kernel32::GetLastError());
+        }
+
+        hwnd
     };
-
-    if user32::RegisterClassExW(&window_class) == 0 {
-        return Err(kernel32::GetLastError());
-    }
-
-    let hwnd = user32::CreateWindowExW(
-        0,
-        class_name.as_ptr(),
-        0 as LPCWSTR,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0 as HWND,
-        0 as HMENU,
-        0 as HINSTANCE,
-        0 as LPVOID);
-
-    if hwnd == 0 as HWND {
-        return Err(kernel32::GetLastError());
-    }
 
     Ok(hwnd)
 }
 
-unsafe fn register_hotkeys(hwnd: HWND) {
+fn register_hotkeys(hwnd: HWND) {
     // Virtual key codes: https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
     // CTRL-ALT-Q to quit
-    user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, VK_Q);
+    unsafe { user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, VK_Q); }
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
     for i in 1..9 {
         let vk_n = VK_0 + i;
 
-        user32::RegisterHotKey(hwnd, 1, MOD_GRAB_WINDOW, vk_n);
-        user32::RegisterHotKey(hwnd, 2, MOD_SWITCH_WINDOW, vk_n);
+        unsafe {
+            user32::RegisterHotKey(hwnd, 1, MOD_GRAB_WINDOW, vk_n);
+            user32::RegisterHotKey(hwnd, 2, MOD_SWITCH_WINDOW, vk_n);
+        }
     }
 }
 
-unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
+fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
     match (modifiers, vk) {
         // Hotkey: Quit
         (MOD_APPCOMMAND, VK_Q) => {
-            user32::PostQuitMessage(0);
+            unsafe { user32::PostQuitMessage(0); }
             Some(0)
         },
 
@@ -167,10 +173,10 @@ unsafe fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
     }
 }
 
-unsafe fn on_command(hwnd: HWND, command: UINT) -> Option<LRESULT> {
+fn on_command(hwnd: HWND, command: UINT) -> Option<LRESULT> {
     match command {
         1 => {
-            user32::DestroyWindow(hwnd);
+            unsafe { user32::DestroyWindow(hwnd); }
             Some(0)
         },
         

@@ -18,14 +18,14 @@ pub struct TrackedWindow {
 }
 
 impl TrackedWindow {
-	pub unsafe fn new(hwnd: HWND, title: OsString) -> Self {
+	pub fn new(hwnd: HWND, title: OsString) -> Self {
 		TrackedWindow {
 			hwnd: SendHandle::new(hwnd),
 			title: Some(title),
 		}
 	}
 
-	pub unsafe fn hwnd(&self) -> HWND {
+	pub fn hwnd(&self) -> HWND {
 		self.hwnd.handle()
 	}
 
@@ -52,17 +52,21 @@ impl Config {
 	}
 }
 
-pub unsafe fn get_foreground_window() -> Win32Result<TrackedWindow> {
-	let foreground_window = user32::GetForegroundWindow();
+pub fn get_foreground_window() -> Win32Result<TrackedWindow> {
+	let (foreground_window, title) = unsafe {
+		let foreground_window = user32::GetForegroundWindow();
 
-	if foreground_window == 0 as HWND {
-		return Err(kernel32::GetLastError());
-	}
+		if foreground_window == 0 as HWND {
+			return Err(kernel32::GetLastError());
+		}
 
-	let mut title = [0 as WCHAR; MAX_TITLE_LEN];
-	if user32::GetWindowTextW(foreground_window, title.as_mut_ptr(), MAX_TITLE_LEN as i32) == 0 {
-		return Err(kernel32::GetLastError());
-	}
+		let mut title = [0 as WCHAR; MAX_TITLE_LEN];
+		if user32::GetWindowTextW(foreground_window, title.as_mut_ptr(), MAX_TITLE_LEN as i32) == 0 {
+			return Err(kernel32::GetLastError());
+		}
+
+		(foreground_window, title)
+	};
 	
 	let title = OsStringExt::from_wide(&title);
 	let tracked_window = TrackedWindow::new(foreground_window, title);
@@ -70,9 +74,11 @@ pub unsafe fn get_foreground_window() -> Win32Result<TrackedWindow> {
 	Ok(tracked_window)
 }
 
-pub unsafe fn set_foreground_window(hwnd: HWND) -> Win32Result<()> {
-	if user32::SetForegroundWindow(hwnd) == 0 {
-		return Err(kernel32::GetLastError());
+pub fn set_foreground_window(hwnd: HWND) -> Win32Result<()> {
+	unsafe {
+		if user32::SetForegroundWindow(hwnd) == 0 {
+			return Err(kernel32::GetLastError());
+		}
 	}
 
 	Ok(())
