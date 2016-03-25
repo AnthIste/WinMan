@@ -15,14 +15,14 @@ pub struct SendHandle<H> {
 unsafe impl Send for SendHandle<HWND> { }
 
 impl SendHandle<HWND> {
-	pub unsafe fn new(handle: HWND) -> Self {
+	pub fn new(handle: HWND) -> Self {
 		SendHandle {
-			uint_handle: mem::transmute(handle),
+			uint_handle: unsafe { mem::transmute(handle) },
 			_h: PhantomData,
 		}		
 	}
 
-	pub unsafe fn handle(&self) -> HWND {
-		mem::transmute(self.uint_handle)
+	pub fn handle(&self) -> HWND {
+		unsafe { mem::transmute(self.uint_handle) }
 	}
 }
