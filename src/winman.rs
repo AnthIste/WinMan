@@ -30,21 +30,19 @@ const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
 
 // Runtime data - everything is static
 lazy_static! {
-    static ref CONFIG: Mutex<Config> = Mutex::new(Default::default());
+    static ref CONFIG: Mutex<Config> = {
+        let config = load_config().unwrap_or(Default::default());
+        
+        Mutex::new(config)
+    };
+}
+
+fn load_config() -> Option<Config> {
+    Some(Default::default())
 }
 
 pub fn main() {
 	println!("Hello Windows!");
-
-    // API demo
-    unsafe {
-        let foreground_window = user32::GetForegroundWindow();
-        println!("{:?}", foreground_window);
-
-        user32::ShowWindow(foreground_window, SW_HIDE);
-        kernel32::Sleep(1000);
-        user32::ShowWindow(foreground_window, SW_SHOW);
-    }
 
     // Window creation
     unsafe {
