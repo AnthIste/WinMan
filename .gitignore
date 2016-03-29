@@ -1,1 +1,8 @@
+*.dll
+*.dummy
 *.exe
+*.rlib
+*~
+/target
+/examples/target
+/Cargo.lock
