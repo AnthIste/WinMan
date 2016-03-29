@@ -4,7 +4,7 @@ pub mod constants;
 
 #[allow(non_snake_case_functions)]
 #[allow(dead_code)]
-pub mod win32_macros;
+pub mod macro;
 
 #[allow(non_camel_case_types)]
 #[allow(uppercase_variables)]

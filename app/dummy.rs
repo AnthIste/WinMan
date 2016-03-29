@@ -1,5 +1,4 @@
 use std::default::Default;
-use std::ffi::CString;
 
 use win32::constants::*;
 use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,LPVOID,LPCSTR,HICON,
@@ -7,7 +6,7 @@ use win32::types::{HWND,UINT,NOTIFYICONDATA,WNDCLASSEXA,WNDPROC,HMENU,HINSTANCE,
 use win32::window::{PostQuitMessage,GetModuleHandleA,Shell_NotifyIcon,RegisterClassExA,CreateWindowExA,
                     GetLastError,LoadImageW,GetSystemMetrics,SetForegroundWindow,TrackPopupMenu,
                     CreatePopupMenu,AppendMenuA,GetCursorPos,DestroyWindow};
-use win32::win32_macros::{MAKEINTRESOURCEW};
+use win32::macro::{MAKEINTRESOURCEW};
 
 use app::window::{Win32Result,Win32Window};
 
@@ -23,7 +22,7 @@ pub struct DummyWindow {
 impl DummyWindow {
     pub fn create(hInstance: Option<HINSTANCE>, wndProc: WNDPROC) -> Win32Result<DummyWindow> {
         let hInstance = hInstance.unwrap_or(GetModuleHandleA(0 as LPCSTR));
-        let className = CString::from_slice(b"MyMagicClassName");
+        let className = "MyMagicClassName".to_c_str();
 
         let mut wc: WNDCLASSEXA = Default::default();
         wc.lpfnWndProc = wndProc;
@@ -90,13 +89,12 @@ impl DummyWindow {
 
     fn deregister_systray_icon(&mut self) {
         match self.nid {
-            Some(ref mut nid) => {
-                Shell_NotifyIcon(NIM_DELETE, nid);
+            Some(mut nid) => {
+                Shell_NotifyIcon(NIM_DELETE, &mut nid);
+                self.nid = None;
             }
             None => { }
         }
-
-        self.nid = None;
     }
 
     fn on_trayicon_event(&mut self, event: UINT) {
@@ -112,13 +110,11 @@ impl DummyWindow {
         GetCursorPos(&mut curPoint);
 
         let hMenu = CreatePopupMenu();
-        let exit_cstr = CString::from_slice(b"E&xit");
-
         AppendMenuA(
             hMenu,
             0, // MF_STRING
             1, // TM_EXIT
-            exit_cstr.as_ptr()
+            "E&xit".to_c_str().as_ptr()
             );
 
         SetForegroundWindow(self.hWnd);

@@ -5,9 +5,9 @@ use win32::constants::*;
 use win32::types::{UINT,HWND};
 use win32::window::{RegisterHotKey,PostQuitMessage,GetForegroundWindow,SetForegroundWindow,ShowWindow};
 
-const MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
-const MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
-const MOD_SWITCH: UINT = MOD_ALT;
+static MOD_APP: UINT = MOD_ALT | MOD_CONTROL;
+static MOD_GRAB: UINT = MOD_ALT | MOD_SHIFT;
+static MOD_SWITCH: UINT = MOD_ALT;
 
 // TODO: store configs and grab state
 pub struct HotkeyManager {
@@ -53,7 +53,7 @@ impl HotkeyManager {
     }
 
     fn switch_to_window(&self, vk: UINT) {
-        match self.mapped_windows.get(&vk) {
+        match self.mapped_windows.find(&vk) {
             Some(&hWnd) => {
                 ShowWindow(hWnd, SW_SHOW);
                 SetForegroundWindow(hWnd);
