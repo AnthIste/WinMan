@@ -119,7 +119,7 @@ fn register_hotkeys(hwnd: HWND) {
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
-    for i in 1..9 {
+    for i in 0..10 {
         let vk_n = VK_0 + i;
 
         unsafe {
