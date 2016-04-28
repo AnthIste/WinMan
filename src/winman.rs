@@ -9,7 +9,6 @@ mod constants;
 mod utils;
 mod window_tracking;
 
-use std::default::Default;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
@@ -31,14 +30,14 @@ const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
 // Runtime data - everything is static
 lazy_static! {
     static ref CONFIG: Mutex<Config> = {
-        let config = load_config().unwrap_or(Default::default());
+        let config = load_config().unwrap_or(Config::new());
         
         Mutex::new(config)
     };
 }
 
 fn load_config() -> Option<Config> {
-    Some(Default::default())
+    Some(Config::new())
 }
 
 pub fn main() {
@@ -140,14 +139,14 @@ fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
         // Hotkey: Grab a window
         (MOD_GRAB_WINDOW, vk) => {
             let mut config = CONFIG.lock().unwrap();
-            let tracked_window = window_tracking::get_foreground_window();
+            let _window = window_tracking::get_foreground_window();
 
-            if let Ok(tracked_window) = tracked_window {
+            if let Ok(_window) = _window {
                 println!("Tracking foreground window {:?}: {}",
-                    tracked_window.hwnd(),
-                    tracked_window.title().unwrap_or("No title"));
+                    _window.hwnd(),
+                    _window.title().unwrap_or("No title"));
                 
-                config.track_window(vk, tracked_window);
+                config.track_window(vk, _window);
             }
 
             Some(0)
@@ -156,14 +155,14 @@ fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
         // Hotkey: Switch to a grabbed window
         (MOD_SWITCH_WINDOW, _vk) => {
             let mut config = CONFIG.lock().unwrap();
-            let tracked_window = config.get_tracked_window(vk);
+            let window = config.get_window(vk);
 
-            if let Some(tracked_window) = tracked_window {
-                println!("Switching to tracked window {:?}: {}",
-                    tracked_window.hwnd(),
-                    tracked_window.title().unwrap_or("No title"));
+            if let Some(window) = window {
+                println!("Switching to  window {:?}: {}",
+                    window.hwnd(),
+                    window.title().unwrap_or("No title"));
 
-                window_tracking::set_foreground_window(tracked_window.hwnd()).ok();
+                window_tracking::set_foreground_window(window.hwnd()).ok();
             }
 
             Some(0)
