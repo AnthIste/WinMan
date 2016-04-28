@@ -26,6 +26,7 @@ use window_tracking::Config;
 const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
 const MOD_GRAB_WINDOW: UINT = MOD_ALT | MOD_SHIFT;
 const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
+const MOD_CLEAR_WINDOWS: UINT = MOD_CONTROL | MOD_ALT;
 
 // Runtime data - everything is static
 lazy_static! {
@@ -124,6 +125,7 @@ fn register_hotkeys(hwnd: HWND) {
         unsafe {
             user32::RegisterHotKey(hwnd, 1, MOD_GRAB_WINDOW, vk_n);
             user32::RegisterHotKey(hwnd, 2, MOD_SWITCH_WINDOW, vk_n);
+            user32::RegisterHotKey(hwnd, 3, MOD_CLEAR_WINDOWS, vk_n);
         }
     }
 }
@@ -139,14 +141,14 @@ fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
         // Hotkey: Grab a window
         (MOD_GRAB_WINDOW, vk) => {
             let mut config = CONFIG.lock().unwrap();
-            let _window = window_tracking::get_foreground_window();
+            let window = window_tracking::get_foreground_window();
 
-            if let Ok(_window) = _window {
+            if let Ok(window) = window {
                 println!("Tracking foreground window {:?}: {}",
-                    _window.hwnd(),
-                    _window.title().unwrap_or("No title"));
+                    window.hwnd(),
+                    window.title().unwrap_or("No title"));
                 
-                config.track_window(vk, _window);
+                config.track_window(vk, window);
             }
 
             Some(0)
@@ -155,15 +157,32 @@ fn on_hotkey(modifiers: UINT, vk: UINT) -> Option<LRESULT> {
         // Hotkey: Switch to a grabbed window
         (MOD_SWITCH_WINDOW, _vk) => {
             let mut config = CONFIG.lock().unwrap();
-            let window = config.get_window(vk);
+            let window_set = config.get_windows(vk);
 
-            if let Some(window) = window {
-                println!("Switching to  window {:?}: {}",
-                    window.hwnd(),
-                    window.title().unwrap_or("No title"));
+            if let Some(window_set) = window_set {
+                while let Some(window) = window_set.cycle() {
+                    println!("Switching to window {:?}: {}",
+                        window.hwnd(),
+                        window.title().unwrap_or("No title"));
 
-                window_tracking::set_foreground_window(window.hwnd()).ok();
+                    match window_tracking::set_foreground_window(window.hwnd()) {
+                        Ok(_) => break,
+                        Err(_) => {
+                            window_set.remove(&window);
+                        }
+                    }
+                }
             }
+
+            Some(0)
+        },
+
+        // Hotkey: Clear windows
+        (MOD_CLEAR_WINDOWS, vk) => {
+            let mut config = CONFIG.lock().unwrap();
+
+            println!("Clearing windows on hotkey {}", vk);
+            config.clear_windows(vk);
 
             Some(0)
         },

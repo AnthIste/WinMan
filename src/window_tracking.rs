@@ -12,6 +12,7 @@ use utils::{SendHandle, Win32Result};
 
 const MAX_TITLE_LEN: usize = 256;
 
+#[derive(Clone)]
 pub struct Window {
     hwnd: SendHandle<HWND>,
     title: Option<OsString>,
@@ -58,10 +59,10 @@ impl WindowSet {
 		}
 	}
 	
-	pub fn remove(&mut self, hwnd: SendHandle<HWND>) -> Option<Window> {
+	pub fn remove(&mut self, window: &Window) -> Option<Window> {
 		let index = self.windows
 		                .iter()
-		                .position(|w| w.hwnd == hwnd);
+		                .position(|w| w.hwnd == window.hwnd);
 
         match index {
         	Some(index) => {
@@ -71,12 +72,15 @@ impl WindowSet {
         }
 	}
 
-	pub fn cycle(&mut self) -> Option<&Window> {
+	pub fn cycle(&mut self) -> Option<Window> {
 		if let Some(back) = self.windows.pop_back() {
 			self.windows.push_front(back);
 		}
 
-		self.windows.front()
+		match self.windows.front() {
+			Some(window) => Some(window.clone()),
+			None => None
+		}
 	}
 }
 
@@ -99,11 +103,12 @@ impl Config {
 		window_set.add(window);		
 	}
 
-	pub fn get_window<'a>(&'a mut self, vk: UINT) -> Option<&'a Window> {
-		match self.windows.get_mut(&vk) {
-			Some(window_set) => window_set.cycle(),
-			None => None
-		}
+	pub fn get_windows(&mut self, vk: UINT) -> Option<&mut WindowSet> {
+		self.windows.get_mut(&vk)
+	}
+
+	pub fn clear_windows(&mut self, vk: UINT) {
+		self.windows.remove(&vk);
 	}
 }
 
