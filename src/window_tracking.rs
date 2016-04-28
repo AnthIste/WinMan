@@ -50,13 +50,8 @@ impl WindowSet {
 	}
 
 	pub fn add(&mut self, window: Window) {
-		let exists = self.windows
-	                     .iter()
-	                     .any(|w| w.hwnd == window.hwnd);
-
-		if !exists {
-			self.windows.push_front(window);
-		}
+		self.remove(&window);
+		self.windows.push_front(window);
 	}
 	
 	pub fn remove(&mut self, window: &Window) -> Option<Window> {
