@@ -12,7 +12,7 @@ pub struct SendHandle<H> {
 	_h: PhantomData<H>,
 }
 
-unsafe impl Send for SendHandle<HWND> { }
+unsafe impl<H> Send for SendHandle<H> { }
 
 impl SendHandle<HWND> {
 	pub fn new(handle: HWND) -> Self {
