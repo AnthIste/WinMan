@@ -251,5 +251,5 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
         _ => None
     };
 
-    lresult.unwrap_or(user32::DefWindowProcW(hwnd, msg, wparam, lparam))
+    lresult.unwrap_or_else(|| user32::DefWindowProcW(hwnd, msg, wparam, lparam))
 }
