@@ -10,7 +10,7 @@ use winapi::winuser;
 
 use utils::Win32Result;
 
-const WIN_DIMENSIONS: (i32, i32) = (640, 50);
+const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 
 pub struct PopupWindow {
     hwnd: HWND
@@ -25,9 +25,13 @@ impl PopupWindow {
 
     pub fn show(&mut self) {
         let screen_bounds = get_screen_bounds();
+        let (w, h) = WIN_DIMENSIONS;
         let (x, y, w, h) = calc_window_pos(
             screen_bounds,
-            WIN_DIMENSIONS,
+            Some(w),
+            Some(h),
+            None,
+            None,
             HorizontalAlignment::Center,
             VerticalAlignment::Center);
 
@@ -139,14 +143,20 @@ enum VerticalAlignment {
 
 fn calc_window_pos(
     parent: (i32, i32, i32, i32),
-    dimensions: (i32, i32),
+    width: Option<i32>,
+    height: Option<i32>,
+    margin: Option<(i32, i32, i32, i32)>,
+    padding: Option<(i32, i32, i32, i32)>,
     hor_align: HorizontalAlignment,
     vert_align: VerticalAlignment) -> (i32, i32, i32, i32) {
     
+    // Parent bounds
     let (l, t, r, b) = parent;
-    let (w, h) = dimensions;
     let (parent_w, parent_h) = (r - l, b - t);
 
+    // Self bounds
+    let w = width.unwrap_or(parent_w);
+    let h = height.unwrap_or(parent_h);
     let x = match hor_align {
         HorizontalAlignment::Left => 0,
         HorizontalAlignment::Center => (parent_w / 2) - (w / 2),
@@ -158,16 +168,30 @@ fn calc_window_pos(
         VerticalAlignment::Bottom => parent_h - h,
     };
 
-    (x, y, w, h)
+    // Bounds modifiers (margin, padding)
+    let (margin_left, margin_top, margin_right, margin_bottom) =
+        margin.unwrap_or((0, 0, 0, 0));
+    let (padding_left, padding_top, padding_right, padding_bottom) =
+        padding.unwrap_or((0, 0, 0, 0));
+
+    (
+        x + margin_left - margin_right + padding_left,
+        y + margin_top - margin_bottom + padding_top,
+        w - padding_left - padding_right,
+        h - padding_top - padding_bottom
+    )
 }
 
 fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
-    let dimensions = (250, 20);
-    let margin_left = 15;
+    let height = 22;
+    let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
         get_window_bounds(parent),
-        dimensions,
-        HorizontalAlignment::Left,
+        None,
+        Some(height),
+        None,
+        Some(padding),
+        HorizontalAlignment::Center,
         VerticalAlignment::Center);
 
     // Using Edit Controls
@@ -183,7 +207,7 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_VISIBLE | winuser::WS_CHILD | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL,
-            x + margin_left,
+            x,
             y,
             w,
             h,
