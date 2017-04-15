@@ -8,6 +8,8 @@ use winapi::*;
 
 use utils::Win32Result;
 
+const WIN_DIMENSIONS: (i32, i32) = (640, 50);
+
 pub struct PopupWindow {
     hwnd: HWND
 }
@@ -43,8 +45,10 @@ pub fn create_window() -> Win32Result<PopupWindow> {
 
 fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
-    
+
     let hwnd = unsafe {
+        let (x, y, w, h) = calc_window_bounds();
+
         let window_class = WNDCLASSEXW {
         	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
         	style: 0x0002 | 0x0001, // CS_HREDRAW | CS_VREDRAW
@@ -69,10 +73,10 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
             class_name.as_ptr(),
             0 as LPCWSTR,
             0x10000000 | 0x80000000 | 0x00800000, // WS_VISIBLE | WS_POPUP | WS_BORDER
-            0x80000000, // x = CW_USEDEFAULT
-            0x80000000, // y = CW_USEDEFAULT
-            640, // width
-            480, // height
+            x,
+            y,
+            w,
+            h,
             0 as HWND,
             0 as HMENU,
             0 as HINSTANCE,
@@ -86,6 +90,23 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     };
 
     Ok(hwnd)
+}
+
+fn calc_window_bounds() -> (i32, i32, i32, i32) {
+    let (screen_w, screen_h) = unsafe {
+        (
+            user32::GetSystemMetrics(SM_CXSCREEN) as i32,
+            user32::GetSystemMetrics(SM_CYSCREEN) as i32
+        )
+    };
+    let (w, h) = WIN_DIMENSIONS;
+    let (x, y) =
+    (
+        (screen_w / 2) - (w / 2), // x
+        (screen_h / 2) - (h / 2), // y
+    );
+
+    (x, y, w, h)
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
