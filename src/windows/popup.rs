@@ -24,11 +24,15 @@ impl PopupWindow {
     }
 
     pub fn show(&mut self) {
-        let (x, y, w, h) = calc_window_pos(None, WIN_DIMENSIONS, HorizontalAlignment::Center, VerticalAlignment::Center);
-        let hwnd_top = 0 as HWND;
+        let screen_bounds = get_screen_bounds();
+        let (x, y, w, h) = calc_window_pos(
+            screen_bounds,
+            WIN_DIMENSIONS,
+            HorizontalAlignment::Center,
+            VerticalAlignment::Center);
 
         unsafe {
-            user32::SetWindowPos(self.hwnd, hwnd_top, x, y, w, h, 0);
+            user32::SetWindowPos(self.hwnd, 0 as HWND, x, y, w, h, 0);
             user32::ShowWindow(self.hwnd, 5); // SW_SHOW
         }
     }
@@ -100,39 +104,30 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     Ok(hwnd)
 }
 
-fn get_window_bounds(parent: Option<HWND>) -> (i32, i32, i32, i32) {
-    match parent {
-        // Get bounds of window
-        Some(hwnd) => {
-            let mut rect = RECT {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0
-            };
+fn get_screen_bounds() -> (i32, i32, i32, i32) {
+    let (screen_w, screen_h) = unsafe {
+        (
+            user32::GetSystemMetrics(SM_CXSCREEN),
+            user32::GetSystemMetrics(SM_CYSCREEN),
+        )
+    };
 
-            unsafe {
-                let has_rect = user32::GetWindowRect(hwnd, &mut rect as *mut _);
+    (0, 0, screen_w, screen_h)
+}
 
-                println!("has_rect = {}", has_rect);
-                println!("rect = {:?}", rect);
-            }
-            
-            (rect.left, rect.top, rect.right, rect.bottom)
-        },
+fn get_window_bounds(hwnd: HWND) -> (i32, i32, i32, i32) {
+    let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0
+    };
 
-        // Get bounds of screen
-        None => {
-            let (screen_w, screen_h) = unsafe {
-                (
-                    user32::GetSystemMetrics(SM_CXSCREEN),
-                    user32::GetSystemMetrics(SM_CYSCREEN),
-                )
-            };
-
-            (0, 0, screen_w, screen_h)
-        }
+    unsafe {
+        user32::GetWindowRect(hwnd, &mut rect as *mut _);
     }
+    
+    (rect.left, rect.top, rect.right, rect.bottom)
 }
 
 enum HorizontalAlignment {
@@ -143,12 +138,13 @@ enum VerticalAlignment {
 }
 
 fn calc_window_pos(
-    parent: Option<HWND>,
-    (w, h): (i32, i32),
+    parent: (i32, i32, i32, i32),
+    dimensions: (i32, i32),
     hor_align: HorizontalAlignment,
     vert_align: VerticalAlignment) -> (i32, i32, i32, i32) {
-    let (l, t, r, b) = get_window_bounds(parent);
-
+    
+    let (l, t, r, b) = parent;
+    let (w, h) = dimensions;
     let (parent_w, parent_h) = (r - l, b - t);
 
     let x = match hor_align {
@@ -162,15 +158,17 @@ fn calc_window_pos(
         VerticalAlignment::Bottom => parent_h - h,
     };
 
-    println!("{} {}", parent_w, parent_h);
-    println!("{} {} {} {}", l, t, r, b);
-    println!("{} {} {} {}", x, y, w, h);
-
     (x, y, w, h)
 }
 
 fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
-    let (x, y, w, h) = calc_window_pos(Some(parent), (250, 20), HorizontalAlignment::Left, VerticalAlignment::Center);
+    let dimensions = (250, 20);
+    let margin_left = 15;
+    let (x, y, w, h) = calc_window_pos(
+        get_window_bounds(parent),
+        dimensions,
+        HorizontalAlignment::Left,
+        VerticalAlignment::Center);
 
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
@@ -185,7 +183,7 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_VISIBLE | winuser::WS_CHILD | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL,
-            x,
+            x + margin_left,
             y,
             w,
             h,
