@@ -62,7 +62,7 @@ pub fn main() {
     };
 
     unsafe {
-        while user32::GetMessageW(&mut msg, hwnd, 0, 0) > 0 {
+        while user32::GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
         }
