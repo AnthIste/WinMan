@@ -71,7 +71,10 @@ pub fn main() {
 }
 
 fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
-    let class_name: Vec<u16> = OsStr::new("WinmanMainWindow").encode_wide().collect();
+    let class_name: Vec<u16> = OsStr::new("WinmanMainWindow")
+        .encode_wide()
+        .chain(::std::iter::once(0))
+        .collect();
     
     let hwnd = unsafe {
         let window_class = WNDCLASSEXW {

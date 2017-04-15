@@ -5,6 +5,7 @@ use std::os::windows::ffi::OsStrExt;
 use kernel32;
 use user32;
 use winapi::*;
+use winapi::winuser;
 
 use utils::Win32Result;
 
@@ -39,9 +40,12 @@ impl PopupWindow {
 }
 
 pub fn create_window() -> Win32Result<PopupWindow> {
-    let create_result = create_window_impl(Some(window_proc));
+    let popup_window = create_window_impl(Some(window_proc))
+        .and_then(|hwnd| {
+            create_edit_box(hwnd).map(|_| hwnd)
+        });
 
-    match create_result {
+    match popup_window {
         Ok(hwnd) => Ok(PopupWindow::new(hwnd)),
         Err(e) => Err(e),
     }
@@ -53,13 +57,13 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     let hwnd = unsafe {
         let window_class = WNDCLASSEXW {
         	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-        	style: 0x0002 | 0x0001, // CS_HREDRAW | CS_VREDRAW
+        	style: winuser::CS_HREDRAW | winuser::CS_VREDRAW,
         	lpfnWndProc: window_proc,
         	cbClsExtra: 0,
         	cbWndExtra: 0,
         	hInstance: 0 as HINSTANCE,
         	hIcon: 0 as HICON,
-        	hCursor: user32::LoadCursorW(0 as HINSTANCE, 32512 as LPCWSTR), // IDC_ARROW
+        	hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
         	hbrBackground: 0 as HBRUSH,
         	lpszMenuName: 0 as LPCWSTR,
         	lpszClassName: class_name.as_ptr(),
@@ -74,7 +78,7 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
             0,
             class_name.as_ptr(),
             0 as LPCWSTR,
-            0x80000000 | 0x00800000, // WS_POPUP | WS_BORDER
+            winuser::WS_POPUP | winuser::WS_BORDER,
             0, // x
             0, // y
             0, // w
@@ -104,11 +108,44 @@ fn calc_window_bounds() -> (i32, i32, i32, i32) {
     let (w, h) = WIN_DIMENSIONS;
     let (x, y) =
     (
-        (screen_w / 2) - (w / 2), // x
-        (screen_h / 2) - (h / 2), // y
+        (screen_w / 2) - (w / 2),
+        (screen_h / 2) - (h / 2),
     );
 
     (x, y, w, h)
+}
+
+fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
+    // Using Edit Controls
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
+    let class_name: Vec<u16> = OsStr::new("Edit")
+        .encode_wide()
+        .chain(::std::iter::once(0))
+        .collect();
+
+    let hwnd = unsafe {
+        let hwnd = user32::CreateWindowExW(
+            winuser::WS_EX_CLIENTEDGE, // The window has a border with a sunken edge
+            class_name.as_ptr(),
+            0 as LPCWSTR,
+            winuser::WS_VISIBLE | winuser::WS_CHILD | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL,
+            5, // x
+            5, // y
+            100, // w
+            20, // h
+            parent,
+            0 as HMENU,
+            0 as HINSTANCE,
+            0 as LPVOID);
+        
+        if hwnd == 0 as HWND {
+            return Err(kernel32::GetLastError());
+        }
+
+        hwnd
+    };
+
+    Ok(hwnd)
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
