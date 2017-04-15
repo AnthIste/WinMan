@@ -50,7 +50,8 @@ pub fn main() {
     register_hotkeys(hwnd);
 
     // Popup window
-    let popup = windows::popup::create_window().expect("Popup creation failed");
+    let mut popup = windows::popup::create_window().expect("Popup creation failed");
+    popup.show();
     
     let mut msg: MSG = MSG {
         hwnd: hwnd,
@@ -62,7 +63,7 @@ pub fn main() {
     };
 
     unsafe {
-        while user32::GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
+        while user32::GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
         }

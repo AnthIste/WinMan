@@ -20,11 +20,15 @@ impl PopupWindow {
     }
 
     pub fn show(&mut self) {
-        // TODO: SendMessage
+        unsafe {
+            user32::ShowWindow(self.hwnd, 5); // SW_SHOW
+        }
     }
 
     pub fn hide(&mut self) {
-        // TODO: SendMessage
+        unsafe {
+            user32::ShowWindow(self.hwnd, 0); // SW_HIDE
+        }
     }
 }
 
@@ -38,18 +42,18 @@ pub fn create_window() -> Win32Result<PopupWindow> {
 }
 
 fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
-    let class_name: Vec<u16> = OsStr::new("WinmanMainWindow").encode_wide().collect();
+    let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
     
     let hwnd = unsafe {
         let window_class = WNDCLASSEXW {
         	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-        	style: 0,
+        	style: 0x0002 | 0x0001, // CS_HREDRAW | CS_VREDRAW
         	lpfnWndProc: window_proc,
         	cbClsExtra: 0,
         	cbWndExtra: 0,
         	hInstance: 0 as HINSTANCE,
         	hIcon: 0 as HICON,
-        	hCursor: 0 as HCURSOR,
+        	hCursor: user32::LoadCursorW(0 as HINSTANCE, 32512 as LPCWSTR), // IDC_ARROW
         	hbrBackground: 0 as HBRUSH,
         	lpszMenuName: 0 as LPCWSTR,
         	lpszClassName: class_name.as_ptr(),
@@ -64,11 +68,11 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
             0,
             class_name.as_ptr(),
             0 as LPCWSTR,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0x10000000 | 0x80000000 | 0x00800000, // WS_VISIBLE | WS_POPUP | WS_BORDER
+            0x80000000, // x = CW_USEDEFAULT
+            0x80000000, // y = CW_USEDEFAULT
+            640, // width
+            480, // height
             0 as HWND,
             0 as HMENU,
             0 as HINSTANCE,
