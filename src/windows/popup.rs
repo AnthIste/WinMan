@@ -22,7 +22,11 @@ impl PopupWindow {
     }
 
     pub fn show(&mut self) {
+        let (x, y, w, h) = calc_window_bounds();
+        let hwnd_top = 0 as HWND;
+
         unsafe {
+            user32::SetWindowPos(self.hwnd, hwnd_top, x, y, w, h, 0);
             user32::ShowWindow(self.hwnd, 5); // SW_SHOW
         }
     }
@@ -47,8 +51,6 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
 
     let hwnd = unsafe {
-        let (x, y, w, h) = calc_window_bounds();
-
         let window_class = WNDCLASSEXW {
         	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
         	style: 0x0002 | 0x0001, // CS_HREDRAW | CS_VREDRAW
@@ -72,11 +74,11 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
             0,
             class_name.as_ptr(),
             0 as LPCWSTR,
-            0x10000000 | 0x80000000 | 0x00800000, // WS_VISIBLE | WS_POPUP | WS_BORDER
-            x,
-            y,
-            w,
-            h,
+            0x80000000 | 0x00800000, // WS_POPUP | WS_BORDER
+            0, // x
+            0, // y
+            0, // w
+            0, // h
             0 as HWND,
             0 as HMENU,
             0 as HINSTANCE,
