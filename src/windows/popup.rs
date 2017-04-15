@@ -1,9 +1,9 @@
-use std as std;
+use std;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 
-use kernel32 as kernel32;
-use user32 as user32;
+use kernel32;
+use user32;
 use winapi::*;
 
 use utils::Win32Result;
