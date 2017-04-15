@@ -5,6 +5,7 @@ use std::os::windows::ffi::OsStrExt;
 use kernel32;
 use user32;
 use winapi::*;
+use winapi::windef::RECT;
 use winapi::winuser;
 
 use utils::Win32Result;
@@ -23,7 +24,7 @@ impl PopupWindow {
     }
 
     pub fn show(&mut self) {
-        let (x, y, w, h) = calc_window_bounds();
+        let (x, y, w, h) = calc_window_pos(None, WIN_DIMENSIONS);
         let hwnd_top = 0 as HWND;
 
         unsafe {
@@ -52,6 +53,7 @@ pub fn create_window() -> Win32Result<PopupWindow> {
 }
 
 fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
+    let (w, h) = WIN_DIMENSIONS;
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
 
     let hwnd = unsafe {
@@ -79,10 +81,10 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_POPUP | winuser::WS_BORDER,
-            0, // x
-            0, // y
-            0, // w
-            0, // h
+            0,
+            0,
+            w,
+            h,
             0 as HWND,
             0 as HMENU,
             0 as HINSTANCE,
@@ -98,24 +100,61 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
     Ok(hwnd)
 }
 
-fn calc_window_bounds() -> (i32, i32, i32, i32) {
-    let (screen_w, screen_h) = unsafe {
-        (
-            user32::GetSystemMetrics(SM_CXSCREEN) as i32,
-            user32::GetSystemMetrics(SM_CYSCREEN) as i32
-        )
-    };
-    let (w, h) = WIN_DIMENSIONS;
+fn get_window_bounds(parent: Option<HWND>) -> (i32, i32, i32, i32) {
+    match parent {
+        // Get bounds of window
+        Some(hwnd) => {
+            let mut rect = RECT {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0
+            };
+
+            unsafe {
+                let has_rect = user32::GetWindowRect(hwnd, &mut rect as *mut _);
+
+                println!("has_rect = {}", has_rect);
+                println!("rect = {:?}", rect);
+            }
+            
+            (rect.left, rect.top, rect.right, rect.bottom)
+        },
+
+        // Get bounds of screen
+        None => {
+            let (screen_w, screen_h) = unsafe {
+                (
+                    user32::GetSystemMetrics(SM_CXSCREEN),
+                    user32::GetSystemMetrics(SM_CYSCREEN),
+                )
+            };
+
+            (0, 0, screen_w, screen_h)
+        }
+    }
+}
+
+fn calc_window_pos(parent: Option<HWND>, (w, h): (i32, i32)) -> (i32, i32, i32, i32) {
+    let (l, t, r, b) = get_window_bounds(parent);
+
+    let (parent_w, parent_h) = (r - l, b - t);
     let (x, y) =
     (
-        (screen_w / 2) - (w / 2),
-        (screen_h / 2) - (h / 2),
+        (parent_w / 2) - (w / 2),
+        (parent_h / 2) - (h / 2),
     );
+
+    println!("{} {}", parent_w, parent_h);
+    println!("{} {} {} {}", l, t, r, b);
+    println!("{} {} {} {}", x, y, w, h);
 
     (x, y, w, h)
 }
 
 fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
+    let (x, y, w, h) = calc_window_pos(Some(parent), (250, 20));
+
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
     let class_name: Vec<u16> = OsStr::new("Edit")
@@ -129,10 +168,10 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_VISIBLE | winuser::WS_CHILD | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL,
-            5, // x
-            5, // y
-            100, // w
-            20, // h
+            x,
+            y,
+            w,
+            h,
             parent,
             0 as HMENU,
             0 as HINSTANCE,
