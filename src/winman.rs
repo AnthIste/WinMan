@@ -8,6 +8,7 @@ extern crate user32;
 mod constants;
 mod utils;
 mod window_tracking;
+mod windows;
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -44,9 +45,12 @@ fn load_config() -> Option<Config> {
 pub fn main() {
 	println!("Hello Windows!");
 
+    // Main window
     let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
-    
     register_hotkeys(hwnd);
+
+    // Popup window
+    let popup = windows::popup::create_window().expect("Popup creation failed");
     
     let mut msg: MSG = MSG {
         hwnd: hwnd,
