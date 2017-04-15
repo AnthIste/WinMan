@@ -24,7 +24,7 @@ impl PopupWindow {
     }
 
     pub fn show(&mut self) {
-        let (x, y, w, h) = calc_window_pos(None, WIN_DIMENSIONS);
+        let (x, y, w, h) = calc_window_pos(None, WIN_DIMENSIONS, HorizontalAlignment::Center, VerticalAlignment::Center);
         let hwnd_top = 0 as HWND;
 
         unsafe {
@@ -135,15 +135,32 @@ fn get_window_bounds(parent: Option<HWND>) -> (i32, i32, i32, i32) {
     }
 }
 
-fn calc_window_pos(parent: Option<HWND>, (w, h): (i32, i32)) -> (i32, i32, i32, i32) {
+enum HorizontalAlignment {
+    Left, Center, Right
+}
+enum VerticalAlignment {
+    Top, Center, Bottom
+}
+
+fn calc_window_pos(
+    parent: Option<HWND>,
+    (w, h): (i32, i32),
+    hor_align: HorizontalAlignment,
+    vert_align: VerticalAlignment) -> (i32, i32, i32, i32) {
     let (l, t, r, b) = get_window_bounds(parent);
 
     let (parent_w, parent_h) = (r - l, b - t);
-    let (x, y) =
-    (
-        (parent_w / 2) - (w / 2),
-        (parent_h / 2) - (h / 2),
-    );
+
+    let x = match hor_align {
+        HorizontalAlignment::Left => 0,
+        HorizontalAlignment::Center => (parent_w / 2) - (w / 2),
+        HorizontalAlignment::Right => parent_w - w,
+    };
+    let y = match vert_align {
+        VerticalAlignment::Top => 0,
+        VerticalAlignment::Center => (parent_h / 2) - (h / 2),
+        VerticalAlignment::Bottom => parent_h - h,
+    };
 
     println!("{} {}", parent_w, parent_h);
     println!("{} {} {} {}", l, t, r, b);
@@ -153,7 +170,7 @@ fn calc_window_pos(parent: Option<HWND>, (w, h): (i32, i32)) -> (i32, i32, i32, 
 }
 
 fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
-    let (x, y, w, h) = calc_window_pos(Some(parent), (250, 20));
+    let (x, y, w, h) = calc_window_pos(Some(parent), (250, 20), HorizontalAlignment::Left, VerticalAlignment::Center);
 
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
