@@ -4,6 +4,7 @@ use std::os::windows::ffi::OsStrExt;
 
 use kernel32;
 use user32;
+use gdi32;
 use winapi::*;
 use winapi::windef::RECT;
 use winapi::winuser;
@@ -11,15 +12,24 @@ use winapi::winuser;
 use utils::Win32Result;
 
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
+const THEME_BG_COLOR: u32 = 0x00111111;
+const THEME_EDT_COLOR: u32 = 0x00F0FFF3;
 
 pub struct PopupWindow {
-    hwnd: HWND
+    hwnd: HWND,
+    hwnd_edit: HWND,
+    hbrush_bg: HBRUSH,
 }
 
 impl PopupWindow {
-    fn new(hwnd: HWND) -> Self {
+    fn new(
+        hwnd: HWND,
+        hwnd_edit: HWND,
+        hbrush_bg: HBRUSH) -> Self {
         PopupWindow {
-            hwnd: hwnd
+            hwnd: hwnd,
+            hwnd_edit: hwnd_edit,
+            hbrush_bg: hbrush_bg,
         }
     }
 
@@ -49,18 +59,34 @@ impl PopupWindow {
 }
 
 pub fn create_window() -> Win32Result<PopupWindow> {
-    let popup_window = create_window_impl(Some(window_proc))
-        .and_then(|hwnd| {
-            create_edit_box(hwnd).map(|_| hwnd)
-        });
+    // TODO: dispose brush (https://msdn.microsoft.com/en-us/library/windows/desktop/dd183518(v=vs.85).aspx)
+    // Wrap in drop handle?
+    let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
+    let hbrush_edt = unsafe { gdi32::CreateSolidBrush(THEME_EDT_COLOR) };
+    
+    let hwnd = match create_window_impl(Some(window_proc), hbrush_bg) {
+        Ok(hwnd) => hwnd,
+        Err(e) => return Err(e),
+    };
+    let hwnd_edit = match create_edit_box(hwnd, hbrush_edt) {
+        Ok(hwnd_edit) => hwnd_edit,
+        Err(e) => return Err(e),
+    };
 
-    match popup_window {
-        Ok(hwnd) => Ok(PopupWindow::new(hwnd)),
-        Err(e) => Err(e),
-    }
+    // Updates background for ALL edit boxes (same window class)
+    // unsafe {
+    //     const GCLP_HBRBACKGROUND: i32 = -10;
+    //     user32::SetClassLongPtrW(hwnd_edit, GCLP_HBRBACKGROUND, hbrush_edt as LONG_PTR);
+    // }
+
+    Ok(PopupWindow::new(
+        hwnd,
+        hwnd_edit,
+        hbrush_bg
+    ))
 }
 
-fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
+fn create_window_impl(window_proc: WNDPROC, hbrush_bg: HBRUSH) -> Win32Result<HWND> {
     let (w, h) = WIN_DIMENSIONS;
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
 
@@ -74,7 +100,7 @@ fn create_window_impl(window_proc: WNDPROC) -> Win32Result<HWND> {
         	hInstance: 0 as HINSTANCE,
         	hIcon: 0 as HICON,
         	hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
-        	hbrBackground: 0 as HBRUSH,
+        	hbrBackground: hbrush_bg,
         	lpszMenuName: 0 as LPCWSTR,
         	lpszClassName: class_name.as_ptr(),
         	hIconSm: 0 as HICON,
@@ -182,7 +208,7 @@ fn calc_window_pos(
     )
 }
 
-fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
+fn create_edit_box(parent: HWND, hbrush_edt: HBRUSH) -> Win32Result<HWND> {
     let height = 22;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
@@ -196,10 +222,52 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
 
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
-    let class_name: Vec<u16> = OsStr::new("Edit")
+    let base_class_name: Vec<u16> = OsStr::new("Edit")
         .encode_wide()
         .chain(::std::iter::once(0))
         .collect();
+    let class_name: Vec<u16> = OsStr::new("LJSDFKJHSDF")
+        .encode_wide()
+        .chain(::std::iter::once(0))
+        .collect();
+
+    let window_class = unsafe {
+        // Get base class details
+        // Default zero structs pls :(
+        let mut window_class = WNDCLASSEXW {
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            style: 0,
+            lpfnWndProc: None, // TODO: hope this works
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hInstance: 0 as HINSTANCE,
+            hIcon: 0 as HICON,
+            hCursor: 0 as HCURSOR,
+            hbrBackground: 0 as HBRUSH,
+            lpszMenuName: 0 as LPCWSTR,
+            lpszClassName: 0 as LPCWSTR,
+            hIconSm: 0 as HICON,
+        };
+        let get_class_info_success = user32::GetClassInfoExW(
+            0 as HINSTANCE,
+            base_class_name.as_ptr(),
+            &mut window_class);
+
+        if get_class_info_success == 0 {
+            return Err(kernel32::GetLastError());
+        }
+
+        // Re-register base class with new name and details
+        window_class.lpszClassName = class_name.as_ptr();
+        window_class.hbrBackground = hbrush_edt;
+        println!("WNDPROC: {}", window_class.lpfnWndProc.is_some());
+        println!("Styles etc: {} {}", window_class.style, window_class.hbrBackground);
+        if user32::RegisterClassExW(&window_class) == 0 {
+            println!("MEH");
+        }
+
+        window_class
+    };
 
     let hwnd = unsafe {
         let hwnd = user32::CreateWindowExW(
