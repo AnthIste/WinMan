@@ -17,7 +17,8 @@ use windows::*;
 
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00111111;
-const THEME_EDT_COLOR: u32 = 0x00F0FFF3;
+const THEME_EDT_COLOR: u32 = 0x00A3FFA3;
+const THEME_EDT_BG_COLOR: u32 = 0x00323232;
 
 lazy_static! {
     static ref WND_MAP: Mutex<InstanceMap> = Mutex::new(InstanceMap::new());
@@ -68,17 +69,18 @@ impl InstanceMap {
 pub struct PopupWindow {
     hwnd: HWND,
     hwnd_edit: HWND,
-    // hbrush_bg: HBRUSH,
+    hbrush_edt: HBRUSH,
 }
 
 impl PopupWindow {
     fn new(
         hwnd: HWND,
-        hwnd_edit: HWND) -> Self {
+        hwnd_edit: HWND,
+        hbrush_edt: HBRUSH) -> Self {
         PopupWindow {
             hwnd: hwnd,
             hwnd_edit: hwnd_edit,
-            // hbrush_bg: hbrush_bg,
+            hbrush_edt: hbrush_edt,
         }
     }
 
@@ -136,7 +138,7 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
         }
 
         user32::CreateWindowExW(
-            0,
+            winuser::WS_EX_TOPMOST, // always on top
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_POPUP | winuser::WS_BORDER,
@@ -157,11 +159,13 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
 
 fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
     let window_bounds = get_window_bounds(hwnd);
+    let hbrush_edt = unsafe { gdi32::CreateSolidBrush(THEME_EDT_BG_COLOR) };
     let hwnd_edt = try!{ create_edit_box(hwnd, window_bounds) };
     
     Ok(PopupWindow::new(
         hwnd,
-        hwnd_edt))
+        hwnd_edt,
+        hbrush_edt))
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
@@ -210,11 +214,21 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = WND_MAP.try_lock().ok().and_then(|mut map| {
-        let instance = map.get(hwnd);
+        let instance = map.get(hwnd)
+            .and_then(|r| r.ok());
 
         match instance {
             // Window exists
-            Some(_instance) => match msg {
+            Some(instance) => match msg {
+                WM_CTLCOLOREDIT => {
+                    let hdc: HDC = wparam as HDC;
+                    gdi32::SetBkColor(hdc, THEME_EDT_BG_COLOR);
+                    gdi32::SetTextColor(hdc, THEME_EDT_COLOR);
+
+                    let dc_brush = instance.borrow().hbrush_edt;
+                    Some(dc_brush as LPARAM)
+                },
+
                 WM_HOTKEY => {
                     let _modifiers = LOWORD(lparam as DWORD);
                     let _vk = HIWORD(lparam as DWORD);
