@@ -26,31 +26,42 @@ lazy_static! {
 type PopupWindowShared = Rc<RefCell<PopupWindow>>;
 
 pub struct InstanceMap {
-    map: HashMap<u32, Win32Result<PopupWindowShared>>,
+    map: HashMap<u32, PopupWindowShared>,
+    err: Option<u32>,
 }
 unsafe impl Send for InstanceMap {}
-unsafe impl Sync for InstanceMap {}
 
 impl InstanceMap {
     fn new() -> Self {
         InstanceMap {
             map: HashMap::new(),
+            err: None,
         }
     }
 
     fn set(&mut self, hwnd: HWND, result: Win32Result<PopupWindow>) {
-        let key = hwnd as u32;
-        let shared = result.map(|instance| Rc::new(RefCell::new(instance)));
+        match result {
+            Ok(instance) => {
+                let key = hwnd as u32;
+                let shared = Rc::new(RefCell::new(instance));
         
-        self.map.insert(key, shared);
+                self.map.insert(key, shared);
+            },
+
+            Err(e) => {
+                self.err = Some(e);
+            }
+        }
     }
 
     fn get(&self, hwnd: HWND) -> Option<Win32Result<PopupWindowShared>> {
         let key = hwnd as u32;
 
-        self.map.get(&key).map(|result| {
-            result.clone().map(|rc| rc.clone())
-        })
+        if hwnd == 0 as HWND {
+            self.err.map(|e| Err(e))
+        } else {
+            self.map.get(&key).map(|rc| Ok(rc.clone()))
+        }
     }
 }
 
@@ -145,11 +156,12 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
 }
 
 fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
-    create_edit_box(hwnd).map(|hwnd_edt| {
-        PopupWindow::new(
-            hwnd,
-            hwnd_edt)
-    })
+    create_edit_box(hwnd)
+        .map(|hwnd_edt| {
+            PopupWindow::new(
+                hwnd,
+                hwnd_edt)
+        })
 }
 
 fn get_screen_bounds() -> (i32, i32, i32, i32) {
