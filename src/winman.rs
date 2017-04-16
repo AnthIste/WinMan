@@ -53,9 +53,12 @@ pub fn main() {
 
     // Popup window
     let popup = windows::popup::create_window().expect("Popup creation failed");
-    let mut popup = popup.borrow_mut();
-    // let popup = Rc::get_mut(&mut popup).expect("I am the captain now");
-    popup.show();
+
+    // Limit scope of mutability
+    {
+        let mut popup = popup.borrow_mut();
+        popup.show();
+    }
     
     let mut msg: MSG = MSG {
         hwnd: hwnd,

@@ -1,6 +1,5 @@
 use std;
 use std::collections::HashMap;
-// use std::rc::{Rc, Weak};
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::sync::Mutex;
@@ -26,39 +25,36 @@ lazy_static! {
 
 pub struct InstanceMap {
     strong: HashMap<u32, Rc<RefCell<PopupWindow>>>,
-    // weak: HashMap<u32, Weak<PopupWindow>>,
+    err: Option<u32>,
 }
 unsafe impl Send for InstanceMap {}
+unsafe impl Sync for InstanceMap {}
 
 impl InstanceMap {
     fn new() -> Self {
         InstanceMap {
             strong: HashMap::new(),
-            // weak: HashMap::new(),
+            err: None,
         }
     }
-
-    // fn take(&mut self, hwnd: HWND) -> Option<RefCell<PopupWindow>> {
-    //     let key = hwnd as u32;
-
-    //     self.strong.remove(&key)
-    // }
 
     fn set(&mut self, hwnd: HWND, instance: PopupWindow) {
         let key = hwnd as u32;
         self.strong.insert(key, Rc::new(RefCell::new(instance)));
     }
 
-    fn get(&self, hwnd: HWND) -> Rc<RefCell<PopupWindow>> {
+    fn get(&self, hwnd: HWND) -> Option<Rc<RefCell<PopupWindow>>> {
         let key = hwnd as u32;
-        self.strong.get(&key)
-            .expect("Shared window must be stored with set()")
-            .clone()
+        self.strong.get(&key).map(|rc| rc.clone())
     }
 
-    // fn get_err(&self) -> u32 {
-    //     1234
-    // }
+    fn set_err(&mut self, e: u32) {
+        self.err = Some(e);
+    }
+
+    fn get_err(&self) -> Option<u32> {
+        self.err
+    }
 }
 
 pub struct PopupWindow {
@@ -149,8 +145,7 @@ pub fn create_window() -> Win32Result<Rc<RefCell<PopupWindow>>> {
     let ref mut map = WND_MAP.lock().unwrap();
     
     if hwnd != 0 as HWND {
-        // Ok(map.get(hwnd).expect("Window was just created and should exist"))
-        Ok(map.get(hwnd))
+        Ok(map.get(hwnd).expect("Window was just created and should exist"))
     } else {
         Err(1234)
     }
@@ -283,42 +278,52 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let lresult = match msg {
-        WM_CREATE => {
-            let ref mut map = WND_MAP.lock().unwrap();
-            let popup = create_window_layout(hwnd);
+    // println!("window_proc begin {}", msg);
+    
+    let lresult = WND_MAP.try_lock().ok().and_then(|mut map| {
+        let instance = map.get(hwnd);
+        
+        match msg {
+            WM_CREATE => {
+                let instance = create_window_layout(hwnd);
+                
+                match instance {
+                    Ok(instance) => {
+                        map.set(hwnd, instance);
+                        Some(0)
+                    },
+                    
+                    Err(e) => {
+                        map.set_err(e);
+                        Some(-1)
+                    },
+                }
+            },
+
+            WM_HOTKEY => {
+                let _modifiers = LOWORD(lparam as DWORD);
+                let _vk = HIWORD(lparam as DWORD);
+
+                Some(0)
+            },
+
+            WM_COMMAND => {
+                let _command = LOWORD(wparam as DWORD);
+
+                Some(0)
+            },
+
+            WM_DESTROY => {
+                user32::PostQuitMessage(0);
+                Some(0)
+            },
             
-            match popup {
-                Ok(popup) => {
-                    map.set(hwnd, popup);
-                    Some(0)
-                },
-                Err(e) => Some(-1),
-            }
-        },
+            user if user >= WM_USER => Some(0),
+            
+            _ => None
+        }
+    });
 
-        WM_HOTKEY => {
-            let _modifiers = LOWORD(lparam as DWORD);
-            let _vk = HIWORD(lparam as DWORD);
-
-            Some(0)
-        },
-
-        WM_COMMAND => {
-            let _command = LOWORD(wparam as DWORD);
-
-            Some(0)
-        },
-
-        WM_DESTROY => {
-            user32::PostQuitMessage(0);
-            Some(0)
-        },
-        
-        user if user >= WM_USER => Some(0),
-        
-        _ => None
-    };
-
+    // println!("window_proc end {}", lresult.unwrap_or(0));
     lresult.unwrap_or_else(|| user32::DefWindowProcW(hwnd, msg, wparam, lparam))
 }
