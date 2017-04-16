@@ -23,9 +23,10 @@ lazy_static! {
     static ref WND_MAP: Mutex<InstanceMap> = Mutex::new(InstanceMap::new());
 }
 
+type PopupWindowShared = Rc<RefCell<PopupWindow>>;
+
 pub struct InstanceMap {
-    strong: HashMap<u32, Rc<RefCell<PopupWindow>>>,
-    err: Option<u32>,
+    strong: HashMap<u32, Win32Result<PopupWindowShared>>,
 }
 unsafe impl Send for InstanceMap {}
 unsafe impl Sync for InstanceMap {}
@@ -34,26 +35,22 @@ impl InstanceMap {
     fn new() -> Self {
         InstanceMap {
             strong: HashMap::new(),
-            err: None,
         }
     }
 
-    fn set(&mut self, hwnd: HWND, instance: PopupWindow) {
+    fn set(&mut self, hwnd: HWND, result: Win32Result<PopupWindow>) {
         let key = hwnd as u32;
-        self.strong.insert(key, Rc::new(RefCell::new(instance)));
+        let shared = result.map(|instance| Rc::new(RefCell::new(instance)));
+        
+        self.strong.insert(key, shared);
     }
 
-    fn get(&self, hwnd: HWND) -> Option<Rc<RefCell<PopupWindow>>> {
+    fn get(&self, hwnd: HWND) -> Option<Win32Result<PopupWindowShared>> {
         let key = hwnd as u32;
-        self.strong.get(&key).map(|rc| rc.clone())
-    }
 
-    fn set_err(&mut self, e: u32) {
-        self.err = Some(e);
-    }
-
-    fn get_err(&self) -> Option<u32> {
-        self.err
+        self.strong.get(&key).map(|result| {
+            result.clone().map(|rc| rc.clone())
+        })
     }
 }
 
@@ -99,7 +96,7 @@ impl PopupWindow {
     }
 }
 
-pub fn create_window() -> Win32Result<Rc<RefCell<PopupWindow>>> {
+pub fn create_window() -> Win32Result<PopupWindowShared> {
     // TODO: dispose brush (https://msdn.microsoft.com/en-us/library/windows/desktop/dd183518(v=vs.85).aspx)
     // Wrap in drop handle? This is a global resource used in the window class
     let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
@@ -144,11 +141,7 @@ pub fn create_window() -> Win32Result<Rc<RefCell<PopupWindow>>> {
 
     let ref mut map = WND_MAP.lock().unwrap();
     
-    if hwnd != 0 as HWND {
-        Ok(map.get(hwnd).expect("Window was just created and should exist"))
-    } else {
-        Err(1234)
-    }
+    map.get(hwnd).expect("Window was just created and should exist")
 }
 
 fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
@@ -286,18 +279,14 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
         match msg {
             WM_CREATE => {
                 let instance = create_window_layout(hwnd);
-                
-                match instance {
-                    Ok(instance) => {
-                        map.set(hwnd, instance);
-                        Some(0)
-                    },
-                    
-                    Err(e) => {
-                        map.set_err(e);
-                        Some(-1)
-                    },
-                }
+                let result = match instance {
+                    Ok(_) => 0,
+                    Err(_) => -1,
+                };
+
+                map.set(hwnd, instance);
+
+                Some(result)
             },
 
             WM_HOTKEY => {

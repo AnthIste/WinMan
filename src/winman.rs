@@ -11,7 +11,6 @@ mod utils;
 mod window_tracking;
 mod windows;
 
-use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
