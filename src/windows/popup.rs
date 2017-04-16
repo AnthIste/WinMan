@@ -15,7 +15,7 @@ use winapi::winuser;
 use utils::Win32Result;
 use windows::*;
 
-const WIN_DIMENSIONS: (i32, i32) = (340, 50);
+const WIN_DIMENSIONS: (i32, i32) = (340, 150);
 const THEME_BG_COLOR: u32 = 0x00111111;
 const THEME_EDT_COLOR: u32 = 0x00A3FFA3;
 const THEME_EDT_BG_COLOR: u32 = 0x00323232;
@@ -97,7 +97,7 @@ impl PopupWindow {
             VerticalAlignment::Center);
 
         unsafe {
-            user32::SetWindowPos(self.hwnd, 0 as HWND, x, y, w, h, 0);
+            user32::SetWindowPos(self.hwnd, HWND_TOPMOST, x, y, w, h, 0);
             user32::ShowWindow(self.hwnd, 5); // SW_SHOW
         }
     }
@@ -138,7 +138,7 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
         }
 
         user32::CreateWindowExW(
-            winuser::WS_EX_TOPMOST, // always on top
+            0,
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_POPUP | winuser::WS_BORDER,
@@ -169,7 +169,7 @@ fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
-    let height = 22;
+    let height = 40;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
         bounds,
@@ -189,10 +189,12 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
 
     let hwnd = unsafe {
         let hwnd = user32::CreateWindowExW(
-            winuser::WS_EX_CLIENTEDGE, // The window has a border with a sunken edge
+            winuser::WS_EX_CLIENTEDGE,
             class_name.as_ptr(),
             0 as LPCWSTR,
-            winuser::WS_VISIBLE | winuser::WS_CHILD | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL,
+            winuser::WS_VISIBLE
+                | winuser::WS_CHILD | winuser::ES_LEFT
+                | winuser::ES_AUTOHSCROLL | winuser::ES_MULTILINE,
             x,
             y,
             w,
@@ -204,6 +206,16 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
         
         if hwnd == 0 as HWND {
             return Err(kernel32::GetLastError());
+        }
+
+        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        user32::SendMessageW(hwnd, EM_GETRECT as UINT, 0, (&rect as *const _) as LPARAM);
+        println!("EM_GETRECT {} / {} {} {} {}", EM_GETRECT, rect.left, rect.top, rect.right, rect.bottom);
+
+        if user32::GetWindowRect(hwnd, &mut rect) != 0 &&
+           user32::InflateRect(&mut rect, -13, -13) != 0 {
+            println!("EM_SETRECT {} / {} {} {} {}", EM_SETRECT, rect.left, rect.top, rect.right, rect.bottom);
+            user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
         }
 
         hwnd
