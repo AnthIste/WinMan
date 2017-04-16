@@ -26,7 +26,7 @@ lazy_static! {
 type PopupWindowShared = Rc<RefCell<PopupWindow>>;
 
 pub struct InstanceMap {
-    strong: HashMap<u32, Win32Result<PopupWindowShared>>,
+    map: HashMap<u32, Win32Result<PopupWindowShared>>,
 }
 unsafe impl Send for InstanceMap {}
 unsafe impl Sync for InstanceMap {}
@@ -34,7 +34,7 @@ unsafe impl Sync for InstanceMap {}
 impl InstanceMap {
     fn new() -> Self {
         InstanceMap {
-            strong: HashMap::new(),
+            map: HashMap::new(),
         }
     }
 
@@ -42,13 +42,13 @@ impl InstanceMap {
         let key = hwnd as u32;
         let shared = result.map(|instance| Rc::new(RefCell::new(instance)));
         
-        self.strong.insert(key, shared);
+        self.map.insert(key, shared);
     }
 
     fn get(&self, hwnd: HWND) -> Option<Win32Result<PopupWindowShared>> {
         let key = hwnd as u32;
 
-        self.strong.get(&key).map(|result| {
+        self.map.get(&key).map(|result| {
             result.clone().map(|rc| rc.clone())
         })
     }
