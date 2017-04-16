@@ -271,48 +271,52 @@ fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    // println!("window_proc begin {}", msg);
-    
     let lresult = WND_MAP.try_lock().ok().and_then(|mut map| {
         let instance = map.get(hwnd);
-        
-        match msg {
-            WM_CREATE => {
+
+        match instance {
+            // Window exists
+            Some(_instance) => match msg {
+                WM_HOTKEY => {
+                    let _modifiers = LOWORD(lparam as DWORD);
+                    let _vk = HIWORD(lparam as DWORD);
+
+                    Some(0)
+                },
+
+                WM_COMMAND => {
+                    let _command = LOWORD(wparam as DWORD);
+
+                    Some(0)
+                },
+
+                WM_DESTROY => {
+                    user32::PostQuitMessage(0);
+                    Some(0)
+                },
+                
+                user if user >= WM_USER => Some(0),
+                
+                _ => None
+            },
+
+            // Window creating
+            None if msg == WM_CREATE => {
                 let instance = create_window_layout(hwnd);
-                let result = match instance {
-                    Ok(_) => 0,
+                let lresult = match instance {
                     Err(_) => -1,
+                    _ => 0,
                 };
 
                 map.set(hwnd, instance);
 
-                Some(result)
+                Some(lresult)
             },
 
-            WM_HOTKEY => {
-                let _modifiers = LOWORD(lparam as DWORD);
-                let _vk = HIWORD(lparam as DWORD);
-
-                Some(0)
-            },
-
-            WM_COMMAND => {
-                let _command = LOWORD(wparam as DWORD);
-
-                Some(0)
-            },
-
-            WM_DESTROY => {
-                user32::PostQuitMessage(0);
-                Some(0)
-            },
-            
-            user if user >= WM_USER => Some(0),
-            
+            // Unknown window lifecycle
             _ => None
         }
     });
 
-    // println!("window_proc end {}", lresult.unwrap_or(0));
     lresult.unwrap_or_else(|| user32::DefWindowProcW(hwnd, msg, wparam, lparam))
 }
