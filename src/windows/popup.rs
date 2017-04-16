@@ -222,52 +222,10 @@ fn create_edit_box(parent: HWND, hbrush_edt: HBRUSH) -> Win32Result<HWND> {
 
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
-    let base_class_name: Vec<u16> = OsStr::new("Edit")
+    let class_name: Vec<u16> = OsStr::new("Edit")
         .encode_wide()
         .chain(::std::iter::once(0))
         .collect();
-    let class_name: Vec<u16> = OsStr::new("LJSDFKJHSDF")
-        .encode_wide()
-        .chain(::std::iter::once(0))
-        .collect();
-
-    let window_class = unsafe {
-        // Get base class details
-        // Default zero structs pls :(
-        let mut window_class = WNDCLASSEXW {
-            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-            style: 0,
-            lpfnWndProc: None, // TODO: hope this works
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: 0 as HINSTANCE,
-            hIcon: 0 as HICON,
-            hCursor: 0 as HCURSOR,
-            hbrBackground: 0 as HBRUSH,
-            lpszMenuName: 0 as LPCWSTR,
-            lpszClassName: 0 as LPCWSTR,
-            hIconSm: 0 as HICON,
-        };
-        let get_class_info_success = user32::GetClassInfoExW(
-            0 as HINSTANCE,
-            base_class_name.as_ptr(),
-            &mut window_class);
-
-        if get_class_info_success == 0 {
-            return Err(kernel32::GetLastError());
-        }
-
-        // Re-register base class with new name and details
-        window_class.lpszClassName = class_name.as_ptr();
-        window_class.hbrBackground = hbrush_edt;
-        println!("WNDPROC: {}", window_class.lpfnWndProc.is_some());
-        println!("Styles etc: {} {}", window_class.style, window_class.hbrBackground);
-        if user32::RegisterClassExW(&window_class) == 0 {
-            println!("MEH");
-        }
-
-        window_class
-    };
 
     let hwnd = unsafe {
         let hwnd = user32::CreateWindowExW(
