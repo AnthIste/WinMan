@@ -12,7 +12,8 @@ name = "winman"
 path = "src/winman.rs"
 
 [dependencies]
-winapi = "0.2.6"
+winapi = "0.2.8"
+comctl32-sys = "0.2.0"
 kernel32-sys = "0.2.2"
 user32-sys = "0.1.2"
 gdi32-sys = "0.2.0"

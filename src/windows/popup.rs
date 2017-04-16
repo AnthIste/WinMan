@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 
+use comctl32;
 use kernel32;
 use user32;
 use gdi32;
@@ -217,6 +218,11 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
         rect.bottom += 2;
         user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
 
+        // Subclass the window proc to allow message intercepting
+        unsafe {
+            comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
+        }
+
         hwnd
     };
 
@@ -238,6 +244,11 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 
                     let dc_brush = instance.borrow().hbrush_edt;
                     Some(dc_brush as LPARAM)
+                },
+
+                WM_KEYDOWN => {
+                    println!("WM_KEYDOWN: {} / {} {}", hwnd as u32, wparam as u32, lparam as u32);
+                    None
                 },
 
                 WM_HOTKEY => {
@@ -282,4 +293,29 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
     });
 
     lresult.unwrap_or_else(|| user32::DefWindowProcW(hwnd, msg, wparam, lparam))
+}
+
+unsafe extern "system" fn subclass_proc_edit(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM, _: UINT_PTR, _: DWORD_PTR) -> LRESULT {
+    let lresult = match msg {
+        WM_CHAR => {
+            match wparam as i32 {
+                VK_ESCAPE => {
+                    println!("SUBCLASS CAPTURED VK_ESCAPE");
+                    Some(0)
+                },
+                VK_RETURN => {
+                    println!("SUBCLASS CAPTURED VK_RETURN");
+                    Some(0)
+                },
+                _ => {
+                    println!("SUBLCASS WM_CHAR {} / {} {}", msg as u32, wparam as u32, lparam as u32);
+                    None
+                }
+            }
+        },
+        
+        _ => None
+    };
+
+    lresult.unwrap_or_else(|| comctl32::DefSubclassProc(hwnd, msg, wparam, lparam))
 }

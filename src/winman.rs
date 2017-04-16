@@ -2,6 +2,7 @@
 extern crate lazy_static;
 
 extern crate winapi;
+extern crate comctl32;
 extern crate kernel32;
 extern crate user32;
 extern crate gdi32;
