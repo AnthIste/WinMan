@@ -11,7 +11,7 @@ mod utils;
 mod window_tracking;
 mod windows;
 
-use std::rc::Rc;
+use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
@@ -52,8 +52,9 @@ pub fn main() {
     register_hotkeys(hwnd);
 
     // Popup window
-    let mut popup = windows::popup::create_window().expect("Popup creation failed");
-    let popup = Rc::get_mut(&mut popup).expect("I am the captain now");
+    let popup = windows::popup::create_window().expect("Popup creation failed");
+    let mut popup = popup.borrow_mut();
+    // let popup = Rc::get_mut(&mut popup).expect("I am the captain now");
     popup.show();
     
     let mut msg: MSG = MSG {

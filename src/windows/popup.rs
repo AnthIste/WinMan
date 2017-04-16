@@ -1,6 +1,8 @@
 use std;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+// use std::rc::{Rc, Weak};
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::sync::Mutex;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -23,8 +25,8 @@ lazy_static! {
 }
 
 pub struct InstanceMap {
-    strong: HashMap<u32, Rc<PopupWindow>>,
-    weak: HashMap<u32, Weak<PopupWindow>>,
+    strong: HashMap<u32, Rc<RefCell<PopupWindow>>>,
+    // weak: HashMap<u32, Weak<PopupWindow>>,
 }
 unsafe impl Send for InstanceMap {}
 
@@ -32,31 +34,31 @@ impl InstanceMap {
     fn new() -> Self {
         InstanceMap {
             strong: HashMap::new(),
-            weak: HashMap::new(),
+            // weak: HashMap::new(),
         }
     }
 
-    fn take(&mut self, hwnd: HWND) -> Option<Rc<PopupWindow>> {
+    // fn take(&mut self, hwnd: HWND) -> Option<RefCell<PopupWindow>> {
+    //     let key = hwnd as u32;
+
+    //     self.strong.remove(&key)
+    // }
+
+    fn set(&mut self, hwnd: HWND, instance: PopupWindow) {
         let key = hwnd as u32;
-
-        self.strong.remove(&key)
+        self.strong.insert(key, Rc::new(RefCell::new(instance)));
     }
 
-    fn set(&mut self, hwnd: HWND, instance: Rc<PopupWindow>) {
+    fn get(&self, hwnd: HWND) -> Rc<RefCell<PopupWindow>> {
         let key = hwnd as u32;
-        
-        self.weak.insert(key, Rc::downgrade(&instance));
-        self.strong.insert(key, instance);
+        self.strong.get(&key)
+            .expect("Shared window must be stored with set()")
+            .clone()
     }
 
-    fn get(&self, hwnd: HWND) -> Option<Rc<PopupWindow>> {
-        let key = hwnd as u32;
-        self.weak.get(&key).and_then(|weak| Weak::upgrade(&weak))
-    }
-
-    fn get_err(&self) -> u32 {
-        1234
-    }
+    // fn get_err(&self) -> u32 {
+    //     1234
+    // }
 }
 
 pub struct PopupWindow {
@@ -101,7 +103,7 @@ impl PopupWindow {
     }
 }
 
-pub fn create_window() -> Win32Result<Rc<PopupWindow>> {
+pub fn create_window() -> Win32Result<Rc<RefCell<PopupWindow>>> {
     // TODO: dispose brush (https://msdn.microsoft.com/en-us/library/windows/desktop/dd183518(v=vs.85).aspx)
     // Wrap in drop handle? This is a global resource used in the window class
     let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
@@ -147,9 +149,10 @@ pub fn create_window() -> Win32Result<Rc<PopupWindow>> {
     let ref mut map = WND_MAP.lock().unwrap();
     
     if hwnd != 0 as HWND {
-        Ok(map.take(hwnd).expect("Window was just created and should exist"))
+        // Ok(map.get(hwnd).expect("Window was just created and should exist"))
+        Ok(map.get(hwnd))
     } else {
-        Err(map.get_err())
+        Err(1234)
     }
 }
 
@@ -287,7 +290,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             
             match popup {
                 Ok(popup) => {
-                    map.set(hwnd, Rc::new(popup));
+                    map.set(hwnd, popup);
                     Some(0)
                 },
                 Err(e) => Some(-1),
