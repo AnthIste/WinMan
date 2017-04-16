@@ -1,4 +1,7 @@
 use std;
+use std::collections::HashMap;
+use std::rc::{Rc, Weak};
+use std::sync::Mutex;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 
@@ -15,21 +18,61 @@ const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00111111;
 const THEME_EDT_COLOR: u32 = 0x00F0FFF3;
 
+lazy_static! {
+    static ref WND_MAP: Mutex<InstanceMap> = Mutex::new(InstanceMap::new());
+}
+
+pub struct InstanceMap {
+    strong: HashMap<u32, Rc<PopupWindow>>,
+    weak: HashMap<u32, Weak<PopupWindow>>,
+}
+unsafe impl Send for InstanceMap {}
+
+impl InstanceMap {
+    fn new() -> Self {
+        InstanceMap {
+            strong: HashMap::new(),
+            weak: HashMap::new(),
+        }
+    }
+
+    fn take(&mut self, hwnd: HWND) -> Option<Rc<PopupWindow>> {
+        let key = hwnd as u32;
+
+        self.strong.remove(&key)
+    }
+
+    fn set(&mut self, hwnd: HWND, instance: Rc<PopupWindow>) {
+        let key = hwnd as u32;
+        
+        self.weak.insert(key, Rc::downgrade(&instance));
+        self.strong.insert(key, instance);
+    }
+
+    fn get(&self, hwnd: HWND) -> Option<Rc<PopupWindow>> {
+        let key = hwnd as u32;
+        self.weak.get(&key).and_then(|weak| Weak::upgrade(&weak))
+    }
+
+    fn get_err(&self) -> u32 {
+        1234
+    }
+}
+
 pub struct PopupWindow {
     hwnd: HWND,
     hwnd_edit: HWND,
-    hbrush_bg: HBRUSH,
+    // hbrush_bg: HBRUSH,
 }
 
 impl PopupWindow {
     fn new(
         hwnd: HWND,
-        hwnd_edit: HWND,
-        hbrush_bg: HBRUSH) -> Self {
+        hwnd_edit: HWND) -> Self {
         PopupWindow {
             hwnd: hwnd,
             hwnd_edit: hwnd_edit,
-            hbrush_bg: hbrush_bg,
+            // hbrush_bg: hbrush_bg,
         }
     }
 
@@ -58,35 +101,11 @@ impl PopupWindow {
     }
 }
 
-pub fn create_window() -> Win32Result<PopupWindow> {
+pub fn create_window() -> Win32Result<Rc<PopupWindow>> {
     // TODO: dispose brush (https://msdn.microsoft.com/en-us/library/windows/desktop/dd183518(v=vs.85).aspx)
-    // Wrap in drop handle?
+    // Wrap in drop handle? This is a global resource used in the window class
     let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
-    let hbrush_edt = unsafe { gdi32::CreateSolidBrush(THEME_EDT_COLOR) };
-    
-    let hwnd = match create_window_impl(Some(window_proc), hbrush_bg) {
-        Ok(hwnd) => hwnd,
-        Err(e) => return Err(e),
-    };
-    let hwnd_edit = match create_edit_box(hwnd, hbrush_edt) {
-        Ok(hwnd_edit) => hwnd_edit,
-        Err(e) => return Err(e),
-    };
 
-    // Updates background for ALL edit boxes (same window class)
-    // unsafe {
-    //     const GCLP_HBRBACKGROUND: i32 = -10;
-    //     user32::SetClassLongPtrW(hwnd_edit, GCLP_HBRBACKGROUND, hbrush_edt as LONG_PTR);
-    // }
-
-    Ok(PopupWindow::new(
-        hwnd,
-        hwnd_edit,
-        hbrush_bg
-    ))
-}
-
-fn create_window_impl(window_proc: WNDPROC, hbrush_bg: HBRUSH) -> Win32Result<HWND> {
     let (w, h) = WIN_DIMENSIONS;
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
 
@@ -94,7 +113,7 @@ fn create_window_impl(window_proc: WNDPROC, hbrush_bg: HBRUSH) -> Win32Result<HW
         let window_class = WNDCLASSEXW {
         	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
         	style: winuser::CS_HREDRAW | winuser::CS_VREDRAW,
-        	lpfnWndProc: window_proc,
+        	lpfnWndProc: Some(window_proc),
         	cbClsExtra: 0,
         	cbWndExtra: 0,
         	hInstance: 0 as HINSTANCE,
@@ -110,7 +129,7 @@ fn create_window_impl(window_proc: WNDPROC, hbrush_bg: HBRUSH) -> Win32Result<HW
             return Err(kernel32::GetLastError());
         }
 
-        let hwnd = user32::CreateWindowExW(
+        user32::CreateWindowExW(
             0,
             class_name.as_ptr(),
             0 as LPCWSTR,
@@ -122,16 +141,24 @@ fn create_window_impl(window_proc: WNDPROC, hbrush_bg: HBRUSH) -> Win32Result<HW
             0 as HWND,
             0 as HMENU,
             0 as HINSTANCE,
-            0 as LPVOID);
-
-        if hwnd == 0 as HWND {
-            return Err(kernel32::GetLastError());
-        }
-
-        hwnd
+            0 as LPVOID)
     };
 
-    Ok(hwnd)
+    let ref mut map = WND_MAP.lock().unwrap();
+    
+    if hwnd != 0 as HWND {
+        Ok(map.take(hwnd).expect("Window was just created and should exist"))
+    } else {
+        Err(map.get_err())
+    }
+}
+
+fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
+    create_edit_box(hwnd).map(|hwnd_edt| {
+        PopupWindow::new(
+            hwnd,
+            hwnd_edt)
+    })
 }
 
 fn get_screen_bounds() -> (i32, i32, i32, i32) {
@@ -208,7 +235,7 @@ fn calc_window_pos(
     )
 }
 
-fn create_edit_box(parent: HWND, hbrush_edt: HBRUSH) -> Win32Result<HWND> {
+fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
     let height = 22;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
@@ -254,6 +281,19 @@ fn create_edit_box(parent: HWND, hbrush_edt: HBRUSH) -> Win32Result<HWND> {
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = match msg {
+        WM_CREATE => {
+            let ref mut map = WND_MAP.lock().unwrap();
+            let popup = create_window_layout(hwnd);
+            
+            match popup {
+                Ok(popup) => {
+                    map.set(hwnd, Rc::new(popup));
+                    Some(0)
+                },
+                Err(e) => Some(-1),
+            }
+        },
+
         WM_HOTKEY => {
             let _modifiers = LOWORD(lparam as DWORD);
             let _vk = HIWORD(lparam as DWORD);
