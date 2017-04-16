@@ -15,7 +15,7 @@ use winapi::winuser;
 use utils::Win32Result;
 use windows::*;
 
-const WIN_DIMENSIONS: (i32, i32) = (340, 150);
+const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00111111;
 const THEME_EDT_COLOR: u32 = 0x00A3FFA3;
 const THEME_EDT_BG_COLOR: u32 = 0x00323232;
@@ -169,7 +169,7 @@ fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
-    let height = 40;
+    let height = 22;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
         bounds,
@@ -189,12 +189,13 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
 
     let hwnd = unsafe {
         let hwnd = user32::CreateWindowExW(
-            winuser::WS_EX_CLIENTEDGE,
+            0, //winuser::WS_EX_CLIENTEDGE,
             class_name.as_ptr(),
             0 as LPCWSTR,
             winuser::WS_VISIBLE
-                | winuser::WS_CHILD | winuser::ES_LEFT
-                | winuser::ES_AUTOHSCROLL | winuser::ES_MULTILINE,
+                | winuser::WS_CHILD
+                | winuser::ES_MULTILINE
+                | winuser::ES_LEFT | winuser::ES_AUTOHSCROLL | ES_AUTOVSCROLL,
             x,
             y,
             w,
@@ -208,15 +209,13 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
             return Err(kernel32::GetLastError());
         }
 
+        // Apply inner padding (the size cannot be too small or it will not take effect)
         let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
         user32::SendMessageW(hwnd, EM_GETRECT as UINT, 0, (&rect as *const _) as LPARAM);
-        println!("EM_GETRECT {} / {} {} {} {}", EM_GETRECT, rect.left, rect.top, rect.right, rect.bottom);
-
-        if user32::GetWindowRect(hwnd, &mut rect) != 0 &&
-           user32::InflateRect(&mut rect, -13, -13) != 0 {
-            println!("EM_SETRECT {} / {} {} {} {}", EM_SETRECT, rect.left, rect.top, rect.right, rect.bottom);
-            user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
-        }
+        rect.left += 5;
+        rect.top += 2;
+        rect.bottom += 2;
+        user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
 
         hwnd
     };
