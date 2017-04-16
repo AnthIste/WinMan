@@ -10,10 +10,10 @@ use kernel32;
 use user32;
 use gdi32;
 use winapi::*;
-use winapi::windef::RECT;
 use winapi::winuser;
 
 use utils::Win32Result;
+use windows::*;
 
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00111111;
@@ -156,92 +156,19 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
 }
 
 fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
-    let hwnd_edt = try!{ create_edit_box(hwnd) };
+    let window_bounds = get_window_bounds(hwnd);
+    let hwnd_edt = try!{ create_edit_box(hwnd, window_bounds) };
     
     Ok(PopupWindow::new(
         hwnd,
         hwnd_edt))
 }
 
-fn get_screen_bounds() -> (i32, i32, i32, i32) {
-    let (screen_w, screen_h) = unsafe {
-        (
-            user32::GetSystemMetrics(SM_CXSCREEN),
-            user32::GetSystemMetrics(SM_CYSCREEN),
-        )
-    };
-
-    (0, 0, screen_w, screen_h)
-}
-
-fn get_window_bounds(hwnd: HWND) -> (i32, i32, i32, i32) {
-    let mut rect = RECT {
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0
-    };
-
-    unsafe {
-        user32::GetWindowRect(hwnd, &mut rect as *mut _);
-    }
-    
-    (rect.left, rect.top, rect.right, rect.bottom)
-}
-
-enum HorizontalAlignment {
-    Left, Center, Right
-}
-enum VerticalAlignment {
-    Top, Center, Bottom
-}
-
-fn calc_window_pos(
-    parent: (i32, i32, i32, i32),
-    width: Option<i32>,
-    height: Option<i32>,
-    margin: Option<(i32, i32, i32, i32)>,
-    padding: Option<(i32, i32, i32, i32)>,
-    hor_align: HorizontalAlignment,
-    vert_align: VerticalAlignment) -> (i32, i32, i32, i32) {
-    
-    // Parent bounds
-    let (l, t, r, b) = parent;
-    let (parent_w, parent_h) = (r - l, b - t);
-
-    // Self bounds
-    let w = width.unwrap_or(parent_w);
-    let h = height.unwrap_or(parent_h);
-    let x = match hor_align {
-        HorizontalAlignment::Left => 0,
-        HorizontalAlignment::Center => (parent_w / 2) - (w / 2),
-        HorizontalAlignment::Right => parent_w - w,
-    };
-    let y = match vert_align {
-        VerticalAlignment::Top => 0,
-        VerticalAlignment::Center => (parent_h / 2) - (h / 2),
-        VerticalAlignment::Bottom => parent_h - h,
-    };
-
-    // Bounds modifiers (margin, padding)
-    let (margin_left, margin_top, margin_right, margin_bottom) =
-        margin.unwrap_or((0, 0, 0, 0));
-    let (padding_left, padding_top, padding_right, padding_bottom) =
-        padding.unwrap_or((0, 0, 0, 0));
-
-    (
-        x + margin_left - margin_right + padding_left,
-        y + margin_top - margin_bottom + padding_top,
-        w - padding_left - padding_right,
-        h - padding_top - padding_bottom
-    )
-}
-
-fn create_edit_box(parent: HWND) -> Win32Result<HWND> {
+fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
     let height = 22;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
-        get_window_bounds(parent),
+        bounds,
         None,
         Some(height),
         None,
