@@ -156,12 +156,11 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
 }
 
 fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
-    create_edit_box(hwnd)
-        .map(|hwnd_edt| {
-            PopupWindow::new(
-                hwnd,
-                hwnd_edt)
-        })
+    let hwnd_edt = try!{ create_edit_box(hwnd) };
+    
+    Ok(PopupWindow::new(
+        hwnd,
+        hwnd_edt))
 }
 
 fn get_screen_bounds() -> (i32, i32, i32, i32) {
