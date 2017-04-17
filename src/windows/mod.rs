@@ -6,8 +6,6 @@ use user32;
 use winapi::windef::*;
 use winapi::winuser;
 
-use utils::Win32Result;
-
 pub mod popup;
 
 struct InstanceMap<T> {
@@ -39,10 +37,12 @@ impl<T> InstanceMap<T> {
 
 pub type Bounds = (i32, i32, i32, i32);
 
+#[allow(dead_code)]
 pub enum HorizontalAlignment {
     Left, Center, Right
 }
 
+#[allow(dead_code)]
 pub enum VerticalAlignment {
     Top, Center, Bottom
 }

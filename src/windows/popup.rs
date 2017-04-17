@@ -33,7 +33,7 @@ lazy_static! {
 
 pub struct PopupWindow {
     hwnd: HWND,
-    edit_box: EditBox,
+    _edit_box: EditBox,
     hbrush_primary: HBRUSH,
     hbrush_secondary: HBRUSH,
 }
@@ -56,7 +56,7 @@ impl PopupWindow {
         
         Ok(PopupWindow {
             hwnd: hwnd,
-            edit_box: edit_box,
+            _edit_box: edit_box,
             hbrush_primary: hbrush_primary,
             hbrush_secondary: hbrush_secondary,
         })
@@ -80,7 +80,7 @@ impl PopupWindow {
         }
     }
 
-    pub fn hide(&self) {
+    pub fn _hide(&self) {
         unsafe {
             user32::ShowWindow(self.hwnd, 0); // SW_HIDE
         }
