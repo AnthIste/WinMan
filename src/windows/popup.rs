@@ -20,6 +20,9 @@ const THEME_BG_COLOR: u32 = 0x00222222;
 const THEME_EDIT_COLOR: u32 = 0x00A3FFA3;
 const THEME_EDIT_BG_COLOR: u32 = 0x00323232;
 
+const MSG_NOTIFY_RETURN: u32 = 1;
+const MSG_NOTIFY_ESCAPE: u32 = 2;
+
 type PopupWindowShared = Rc<RefCell<PopupWindow>>;
 type PopupInstances = InstanceMap<PopupWindow>;
 unsafe impl Send for PopupInstances {}
@@ -74,7 +77,13 @@ impl PopupWindow {
         }
     }
 
-    fn wm_erasebkgnd(&self, hdc: HDC) -> LRESULT {
+    pub fn hide(&self) {
+        unsafe {
+            user32::ShowWindow(self.hwnd, 0); // SW_HIDE
+        }
+    }
+
+    fn wm_erasebkgnd(&self, hdc: HDC) -> Option<HBRUSH> {
         let brush = self.hbrush_primary;
 
         // Background
@@ -85,21 +94,39 @@ impl PopupWindow {
         }
 
         // Border
-        self.hbrush_secondary as LRESULT
+        Some(self.hbrush_secondary)
     }
 
-    fn wm_ctlcoloredit(&self, hdc: HDC) -> LRESULT {
+    fn wm_ctlcoloredit(&self, hdc: HDC) -> Option<HBRUSH> {
         unsafe {
             gdi32::SetBkColor(hdc, THEME_EDIT_BG_COLOR);
             gdi32::SetTextColor(hdc, THEME_EDIT_COLOR);
         }
 
-        self.hbrush_secondary as LRESULT
+        Some(self.hbrush_secondary)
     }
 
-    pub fn hide(&self) {
-        unsafe {
-            user32::ShowWindow(self.hwnd, 0); // SW_HIDE
+    fn wm_notify(&self, nmhdr: &winuser::NMHDR) {
+        match nmhdr.code {
+            MSG_NOTIFY_ESCAPE => {
+                unsafe { user32::PostQuitMessage(0); }
+            },
+
+            MSG_NOTIFY_RETURN => {
+                println!("MSG_NOTIFY_RETURN");
+            },
+
+            _ => ()
+        }
+    }
+
+    fn wm_keydown(&self, vk: i32, _flags: i32) {
+        match vk {
+            VK_ESCAPE => {
+                unsafe { user32::PostQuitMessage(0); }
+            },
+
+            _ => ()
         }
     }
 }
@@ -234,16 +261,33 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             Some(instance) => match msg {
                 WM_ERASEBKGND => {
                     let hdc: HDC = wparam as HDC;
-                    let lresult = instance.borrow().wm_erasebkgnd(hdc);
+                    let dc_brush = instance.borrow().wm_erasebkgnd(hdc);
+                    let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
                     
-                    Some(lresult)
+                    Some(dc_brush as LRESULT)
                 },
 
                 WM_CTLCOLOREDIT => {
                     let hdc: HDC = wparam as HDC;
-                    let lresult = instance.borrow().wm_ctlcoloredit(hdc);
+                    let dc_brush = instance.borrow().wm_ctlcoloredit(hdc);
+                    let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
 
-                    Some(lresult)
+                    Some(dc_brush as LRESULT)
+                },
+
+                WM_NOTIFY => {
+                    let nmhdr = lparam as *const winuser::NMHDR;
+                    instance.borrow().wm_notify(&*nmhdr);
+
+                    Some(0)
+                },
+
+                WM_KEYDOWN => {
+                    let vk = wparam as i32;
+                    let flags = lparam as i32;
+                    instance.borrow().wm_keydown(vk, flags);
+
+                    Some(0)
                 },
 
                 WM_DESTROY => {
@@ -276,19 +320,30 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 }
 
 unsafe extern "system" fn subclass_proc_edit(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM, _: UINT_PTR, _: DWORD_PTR) -> LRESULT {
+    let notify_parent = |code: u32| {
+        let hwnd_parent = user32::GetParent(hwnd);
+        let nmhdr = winuser::NMHDR {
+            hwndFrom: hwnd,
+            idFrom: 0,
+            code: code,
+        };
+        user32::SendMessageW(hwnd_parent, WM_NOTIFY, 0 as WPARAM, (&nmhdr as *const _) as LPARAM);
+    };
+
     let lresult = match msg {
         WM_CHAR => {
             match wparam as i32 {
                 VK_ESCAPE => {
-                    println!("SUBCLASS CAPTURED VK_ESCAPE");
+                    notify_parent(MSG_NOTIFY_ESCAPE);
                     Some(0)
                 },
+
                 VK_RETURN => {
-                    println!("SUBCLASS CAPTURED VK_RETURN");
+                    notify_parent(MSG_NOTIFY_RETURN);
                     Some(0)
                 },
+
                 _ => {
-                    println!("SUBLCASS WM_CHAR {} / {} {}", msg as u32, wparam as u32, lparam as u32);
                     None
                 }
             }
