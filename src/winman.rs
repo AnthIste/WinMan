@@ -24,6 +24,7 @@ use winapi::winuser::*;
 use constants::*;
 use utils::Win32Result;
 use window_tracking::Config;
+use windows::popup::PopupWindow;
 
 // Hotkey modifiers
 const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
@@ -52,7 +53,7 @@ pub fn main() {
     register_hotkeys(hwnd);
 
     // Popup window
-    let popup = windows::popup::create_window()
+    let popup = PopupWindow::new()
         .expect("Popup creation failed");
 
     {
