@@ -55,9 +55,8 @@ pub fn main() {
     let popup = windows::popup::create_window()
         .expect("Popup creation failed");
 
-    // Limit scope of mutability
     {
-        let mut popup = popup.borrow();
+        let popup = popup.borrow();
         popup.show();
     }
     
