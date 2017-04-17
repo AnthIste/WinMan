@@ -56,14 +56,14 @@ impl InstanceMap {
         }
     }
 
-    fn get(&self, hwnd: HWND) -> Option<Win32Result<PopupWindowShared>> {
+    fn get(&self, hwnd: HWND) -> Option<PopupWindowShared> {
         let key = hwnd as u32;
 
-        if hwnd == 0 as HWND {
-            self.err.map(|e| Err(e))
-        } else {
-            self.map.get(&key).map(|rc| Ok(rc.clone()))
-        }
+        self.map.get(&key).map(|rc| rc.clone())
+    }
+
+    fn get_err(&self) -> Option<u32> {
+        self.err
     }
 }
 
@@ -158,8 +158,11 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
     };
 
     let ref mut map = WND_MAP.lock().unwrap();
-    
-    map.get(hwnd).expect("Window was just created and should exist")
+
+    match map.get(hwnd) {
+        Some(window) => Ok(window),
+        None => Err(map.get_err().expect("Either window or err must be set after window creation"))
+    }
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
@@ -222,8 +225,7 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     let lresult = WND_MAP.try_lock().ok().and_then(|mut map| {
-        let instance = map.get(hwnd)
-            .and_then(|r| r.ok());
+        let instance = map.get(hwnd);
 
         match instance {
             // Window exists
