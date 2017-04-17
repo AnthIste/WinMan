@@ -171,11 +171,19 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
             0 as LPVOID)
     };
 
-    let ref mut map = POPUP_INSTANCES.lock().unwrap();
+    let instance = PopupWindow::new(hwnd);
 
-    match map.get(hwnd) {
-        Some(shared) => Ok(shared),
-        None => Err(map.get_err().expect("Either window or err must be set after window creation"))
+    match instance {
+        Ok(instance) => {
+            let ref mut map = POPUP_INSTANCES.lock().unwrap();
+            map.set(hwnd, Ok(instance));
+            Ok(map.get(hwnd).expect("Window was just created and an should exist"))
+        },
+
+        Err(e) => {
+            unsafe { user32::DestroyWindow(hwnd); }
+            Err(e)        
+        }
     }
 }
 
@@ -253,19 +261,6 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
                 },
                 
                 _ => None
-            },
-
-            // Window creating
-            None if msg == WM_CREATE => {
-                let instance = PopupWindow::new(hwnd);
-                let lresult = match instance {
-                    Err(_) => -1,
-                    _ => 0,
-                };
-
-                map.set(hwnd, instance);
-
-                Some(lresult)
             },
 
             // Unknown window lifecycle
