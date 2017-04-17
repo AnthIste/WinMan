@@ -52,11 +52,12 @@ pub fn main() {
     register_hotkeys(hwnd);
 
     // Popup window
-    let popup = windows::popup::create_window().expect("Popup creation failed");
+    let popup = windows::popup::create_window()
+        .expect("Popup creation failed");
 
     // Limit scope of mutability
     {
-        let mut popup = popup.borrow_mut();
+        let mut popup = popup.borrow();
         popup.show();
     }
     

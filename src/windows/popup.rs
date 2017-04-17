@@ -17,9 +17,9 @@ use utils::Win32Result;
 use windows::*;
 
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
-const THEME_BG_COLOR: u32 = 0x00111111;
-const THEME_EDT_COLOR: u32 = 0x00A3FFA3;
-const THEME_EDT_BG_COLOR: u32 = 0x00323232;
+const THEME_BG_COLOR: u32 = 0x00222222;
+const THEME_EDIT_COLOR: u32 = 0x00A3FFA3;
+const THEME_EDIT_BG_COLOR: u32 = 0x00323232;
 
 lazy_static! {
     static ref WND_MAP: Mutex<InstanceMap> = Mutex::new(InstanceMap::new());
@@ -70,22 +70,29 @@ impl InstanceMap {
 pub struct PopupWindow {
     hwnd: HWND,
     hwnd_edit: HWND,
-    hbrush_edt: HBRUSH,
+    hbrush_bg: HBRUSH,
+    hbrush_edit: HBRUSH,
 }
 
 impl PopupWindow {
-    fn new(
-        hwnd: HWND,
-        hwnd_edit: HWND,
-        hbrush_edt: HBRUSH) -> Self {
-        PopupWindow {
+    fn new(hwnd: HWND) -> Win32Result<PopupWindow> {
+        // Create controls
+        let window_bounds = get_window_bounds(hwnd);
+        let hwnd_edit = try!{ create_edit_box(hwnd, window_bounds) };
+
+        // Create brush resources
+        let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
+        let hbrush_edit = unsafe { gdi32::CreateSolidBrush(THEME_EDIT_BG_COLOR) };
+        
+        Ok(PopupWindow {
             hwnd: hwnd,
             hwnd_edit: hwnd_edit,
-            hbrush_edt: hbrush_edt,
-        }
+            hbrush_bg: hbrush_bg,
+            hbrush_edit: hbrush_edit,
+        })
     }
 
-    pub fn show(&mut self) {
+    pub fn show(&self) {
         let screen_bounds = get_screen_bounds();
         let (w, h) = WIN_DIMENSIONS;
         let (x, y, w, h) = calc_window_pos(
@@ -98,12 +105,12 @@ impl PopupWindow {
             VerticalAlignment::Center);
 
         unsafe {
-            user32::SetWindowPos(self.hwnd, HWND_TOPMOST, x, y, w, h, 0);
+            user32::SetWindowPos(self.hwnd, winuser::HWND_TOPMOST, x, y, w, h, 0);
             user32::ShowWindow(self.hwnd, 5); // SW_SHOW
         }
     }
 
-    pub fn hide(&mut self) {
+    pub fn hide(&self) {
         unsafe {
             user32::ShowWindow(self.hwnd, 0); // SW_HIDE
         }
@@ -111,10 +118,6 @@ impl PopupWindow {
 }
 
 pub fn create_window() -> Win32Result<PopupWindowShared> {
-    // TODO: dispose brush (https://msdn.microsoft.com/en-us/library/windows/desktop/dd183518(v=vs.85).aspx)
-    // Wrap in drop handle? This is a global resource used in the window class
-    let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
-
     let (w, h) = WIN_DIMENSIONS;
     let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
 
@@ -128,7 +131,7 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
         	hInstance: 0 as HINSTANCE,
         	hIcon: 0 as HICON,
         	hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
-        	hbrBackground: hbrush_bg,
+        	hbrBackground: 0 as HBRUSH,
         	lpszMenuName: 0 as LPCWSTR,
         	lpszClassName: class_name.as_ptr(),
         	hIconSm: 0 as HICON,
@@ -156,17 +159,6 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
     let ref mut map = WND_MAP.lock().unwrap();
     
     map.get(hwnd).expect("Window was just created and should exist")
-}
-
-fn create_window_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
-    let window_bounds = get_window_bounds(hwnd);
-    let hbrush_edt = unsafe { gdi32::CreateSolidBrush(THEME_EDT_BG_COLOR) };
-    let hwnd_edt = try!{ create_edit_box(hwnd, window_bounds) };
-    
-    Ok(PopupWindow::new(
-        hwnd,
-        hwnd_edt,
-        hbrush_edt))
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
@@ -219,9 +211,7 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
         user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
 
         // Subclass the window proc to allow message intercepting
-        unsafe {
-            comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
-        }
+        comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
 
         hwnd
     };
@@ -237,12 +227,26 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
         match instance {
             // Window exists
             Some(instance) => match msg {
+                WM_ERASEBKGND => {
+                    let hdc: HDC = wparam as HDC;
+                    let brush = instance.borrow().hbrush_bg;
+
+                    // Background
+                    let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+                    user32::GetClientRect(hwnd, &mut rc);
+                    user32::FillRect(hdc, &rc, brush);
+
+                    // Border
+                    let dc_brush = instance.borrow().hbrush_edit;
+                    Some(dc_brush as LRESULT)
+                },
+
                 WM_CTLCOLOREDIT => {
                     let hdc: HDC = wparam as HDC;
-                    gdi32::SetBkColor(hdc, THEME_EDT_BG_COLOR);
-                    gdi32::SetTextColor(hdc, THEME_EDT_COLOR);
+                    gdi32::SetBkColor(hdc, THEME_EDIT_BG_COLOR);
+                    gdi32::SetTextColor(hdc, THEME_EDIT_COLOR);
 
-                    let dc_brush = instance.borrow().hbrush_edt;
+                    let dc_brush = instance.borrow().hbrush_edit;
                     Some(dc_brush as LPARAM)
                 },
 
@@ -276,7 +280,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 
             // Window creating
             None if msg == WM_CREATE => {
-                let instance = create_window_layout(hwnd);
+                let instance = PopupWindow::new(hwnd);
                 let lresult = match instance {
                     Err(_) => -1,
                     _ => 0,
