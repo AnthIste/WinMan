@@ -70,8 +70,8 @@ impl InstanceMap {
 pub struct PopupWindow {
     hwnd: HWND,
     hwnd_edit: HWND,
-    hbrush_bg: HBRUSH,
-    hbrush_edit: HBRUSH,
+    hbrush_primary: HBRUSH,
+    hbrush_secondary: HBRUSH,
 }
 
 impl PopupWindow {
@@ -81,14 +81,15 @@ impl PopupWindow {
         let hwnd_edit = try!{ create_edit_box(hwnd, window_bounds) };
 
         // Create brush resources
-        let hbrush_bg = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
-        let hbrush_edit = unsafe { gdi32::CreateSolidBrush(THEME_EDIT_BG_COLOR) };
+        // TODO: dispose
+        let hbrush_primary = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
+        let hbrush_secondary = unsafe { gdi32::CreateSolidBrush(THEME_EDIT_BG_COLOR) };
         
         Ok(PopupWindow {
             hwnd: hwnd,
             hwnd_edit: hwnd_edit,
-            hbrush_bg: hbrush_bg,
-            hbrush_edit: hbrush_edit,
+            hbrush_primary: hbrush_primary,
+            hbrush_secondary: hbrush_secondary,
         })
     }
 
@@ -229,7 +230,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             Some(instance) => match msg {
                 WM_ERASEBKGND => {
                     let hdc: HDC = wparam as HDC;
-                    let brush = instance.borrow().hbrush_bg;
+                    let brush = instance.borrow().hbrush_primary;
 
                     // Background
                     let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
@@ -237,7 +238,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
                     user32::FillRect(hdc, &rc, brush);
 
                     // Border
-                    let dc_brush = instance.borrow().hbrush_edit;
+                    let dc_brush = instance.borrow().hbrush_secondary;
                     Some(dc_brush as LRESULT)
                 },
 
@@ -246,7 +247,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
                     gdi32::SetBkColor(hdc, THEME_EDIT_BG_COLOR);
                     gdi32::SetTextColor(hdc, THEME_EDIT_COLOR);
 
-                    let dc_brush = instance.borrow().hbrush_edit;
+                    let dc_brush = instance.borrow().hbrush_secondary;
                     Some(dc_brush as LPARAM)
                 },
 
