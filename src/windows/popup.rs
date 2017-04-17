@@ -21,64 +21,28 @@ const THEME_BG_COLOR: u32 = 0x00222222;
 const THEME_EDIT_COLOR: u32 = 0x00A3FFA3;
 const THEME_EDIT_BG_COLOR: u32 = 0x00323232;
 
-lazy_static! {
-    static ref WND_MAP: Mutex<InstanceMap> = Mutex::new(InstanceMap::new());
-}
-
 type PopupWindowShared = Rc<RefCell<PopupWindow>>;
+type PopupInstances = InstanceMap<PopupWindow>;
+unsafe impl Send for PopupInstances {}
 
-pub struct InstanceMap {
-    map: HashMap<u32, PopupWindowShared>,
-    err: Option<u32>,
-}
-unsafe impl Send for InstanceMap {}
-
-impl InstanceMap {
-    fn new() -> Self {
-        InstanceMap {
-            map: HashMap::new(),
-            err: None,
-        }
-    }
-
-    fn set(&mut self, hwnd: HWND, result: Win32Result<PopupWindow>) {
-        match result {
-            Ok(instance) => {
-                let key = hwnd as u32;
-                let shared = Rc::new(RefCell::new(instance));
-        
-                self.map.insert(key, shared);
-            },
-
-            Err(e) => {
-                self.err = Some(e);
-            }
-        }
-    }
-
-    fn get(&self, hwnd: HWND) -> Option<PopupWindowShared> {
-        let key = hwnd as u32;
-
-        self.map.get(&key).map(|rc| rc.clone())
-    }
-
-    fn get_err(&self) -> Option<u32> {
-        self.err
-    }
+lazy_static! {
+    static ref POPUP_INSTANCES: Mutex<PopupInstances> = Mutex::new(PopupInstances::new());
 }
 
 pub struct PopupWindow {
     hwnd: HWND,
-    hwnd_edit: HWND,
+    edit_box: EditBox,
     hbrush_primary: HBRUSH,
     hbrush_secondary: HBRUSH,
 }
+
+struct EditBox { hwnd: HWND }
 
 impl PopupWindow {
     fn new(hwnd: HWND) -> Win32Result<PopupWindow> {
         // Create controls
         let window_bounds = get_window_bounds(hwnd);
-        let hwnd_edit = try!{ create_edit_box(hwnd, window_bounds) };
+        let edit_box = try!{ create_edit_box(hwnd, window_bounds) };
 
         // Create brush resources
         // TODO: dispose
@@ -87,7 +51,7 @@ impl PopupWindow {
         
         Ok(PopupWindow {
             hwnd: hwnd,
-            hwnd_edit: hwnd_edit,
+            edit_box: edit_box,
             hbrush_primary: hbrush_primary,
             hbrush_secondary: hbrush_secondary,
         })
@@ -141,9 +105,36 @@ impl PopupWindow {
     }
 }
 
+impl EditBox {
+    fn new(hwnd: HWND) -> Win32Result<Self> {
+        // Apply inner padding
+        // The size cannot be too small or it will not take effect
+        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        unsafe {
+            user32::SendMessageW(hwnd, EM_GETRECT as UINT, 0, (&rect as *const _) as LPARAM);
+            rect.left += 5;
+            rect.top += 2;
+            rect.bottom += 2;
+            user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
+        }
+
+        // Subclass the window proc to allow message intercepting
+        unsafe {
+            comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
+        }
+
+        Ok(EditBox {
+            hwnd: hwnd
+        })
+    }
+}
+
 pub fn create_window() -> Win32Result<PopupWindowShared> {
     let (w, h) = WIN_DIMENSIONS;
-    let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow").encode_wide().collect();
+    let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
+        .encode_wide()
+        .chain(::std::iter::once(0))
+        .collect();
 
     let hwnd = unsafe {
         let window_class = WNDCLASSEXW {
@@ -180,15 +171,15 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
             0 as LPVOID)
     };
 
-    let ref mut map = WND_MAP.lock().unwrap();
+    let ref mut map = POPUP_INSTANCES.lock().unwrap();
 
     match map.get(hwnd) {
-        Some(window) => Ok(window),
+        Some(shared) => Ok(shared),
         None => Err(map.get_err().expect("Either window or err must be set after window creation"))
     }
 }
 
-fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
+fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<EditBox> {
     let height = 22;
     let padding = (15, 0, 15, 0);
     let (x, y, w, h) = calc_window_pos(
@@ -229,25 +220,14 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<HWND> {
             return Err(kernel32::GetLastError());
         }
 
-        // Apply inner padding (the size cannot be too small or it will not take effect)
-        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-        user32::SendMessageW(hwnd, EM_GETRECT as UINT, 0, (&rect as *const _) as LPARAM);
-        rect.left += 5;
-        rect.top += 2;
-        rect.bottom += 2;
-        user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
-
-        // Subclass the window proc to allow message intercepting
-        comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
-
         hwnd
     };
 
-    Ok(hwnd)
+    EditBox::new(hwnd)
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let lresult = WND_MAP.try_lock().ok().and_then(|mut map| {
+    let lresult = POPUP_INSTANCES.try_lock().ok().and_then(|mut map| {
         let instance = map.get(hwnd);
 
         match instance {
