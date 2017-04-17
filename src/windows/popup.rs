@@ -265,57 +265,54 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<EditBox> {
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let lresult = POPUP_INSTANCES.try_lock().ok().and_then(|map| {
-        let instance = map.get(hwnd);
+    let instance = {
+        let map = POPUP_INSTANCES.lock().unwrap();
+        map.get(hwnd)
+    };
 
-        match instance {
-            // Window exists
-            Some(instance) => match msg {
-                WM_ERASEBKGND => {
-                    let hdc: HDC = wparam as HDC;
-                    let dc_brush = instance.borrow().wm_erasebkgnd(hdc);
-                    let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
-                    
-                    Some(dc_brush as LRESULT)
-                },
-
-                WM_CTLCOLOREDIT => {
-                    let hdc: HDC = wparam as HDC;
-                    let dc_brush = instance.borrow().wm_ctlcoloredit(hdc);
-                    let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
-
-                    Some(dc_brush as LRESULT)
-                },
-
-                WM_NOTIFY => {
-                    let nmhdr = lparam as *const winuser::NMHDR;
-                    instance.borrow().wm_notify(&*nmhdr);
-
-                    Some(0)
-                },
-
-                WM_KEYDOWN => {
-                    let vk = wparam as i32;
-                    let flags = lparam as i32;
-                    instance.borrow().wm_keydown(vk, flags);
-
-                    Some(0)
-                },
-
-                WM_DESTROY => {
-                    user32::PostQuitMessage(0);
-                    Some(0)
-                },
+    if let Some(instance) = instance {
+        match msg {
+            WM_ERASEBKGND => {
+                let hdc: HDC = wparam as HDC;
+                let dc_brush = instance.borrow().wm_erasebkgnd(hdc);
+                let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
                 
-                _ => None
+                return dc_brush as LRESULT;
             },
 
-            // Unknown window lifecycle
-            _ => None
-        }
-    });
+            WM_CTLCOLOREDIT => {
+                let hdc: HDC = wparam as HDC;
+                let dc_brush = instance.borrow().wm_ctlcoloredit(hdc);
+                let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
 
-    lresult.unwrap_or_else(|| user32::DefWindowProcW(hwnd, msg, wparam, lparam))
+                return dc_brush as LRESULT;
+            },
+
+            WM_NOTIFY => {
+                let nmhdr = lparam as *const winuser::NMHDR;
+                instance.borrow().wm_notify(&*nmhdr);
+
+                return 0;
+            },
+
+            WM_KEYDOWN => {
+                let vk = wparam as i32;
+                let flags = lparam as i32;
+                instance.borrow().wm_keydown(vk, flags);
+
+                return 0;
+            },
+
+            WM_DESTROY => {
+                user32::PostQuitMessage(0);
+                return 0;
+            },
+            
+            _ => ()
+        }
+    };
+
+    user32::DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
 unsafe extern "system" fn subclass_proc_edit(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM, _: UINT_PTR, _: DWORD_PTR) -> LRESULT {
