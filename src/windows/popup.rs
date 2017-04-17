@@ -41,10 +41,83 @@ pub struct PopupWindow {
 struct EditBox { hwnd: HWND }
 
 impl PopupWindow {
-    fn new(hwnd: HWND) -> Win32Result<PopupWindow> {
+    fn new() -> Win32Result<PopupWindow> {
+        let (w, h) = WIN_DIMENSIONS;
+        let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
+            .encode_wide()
+            .chain(::std::iter::once(0))
+            .collect();
+
+        let hwnd = unsafe {
+            let window_class = WNDCLASSEXW {
+                cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+                style: winuser::CS_HREDRAW | winuser::CS_VREDRAW,
+                lpfnWndProc: Some(window_proc),
+                cbClsExtra: 0,
+                cbWndExtra: 0,
+                hInstance: 0 as HINSTANCE,
+                hIcon: 0 as HICON,
+                hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
+                hbrBackground: 0 as HBRUSH,
+                lpszMenuName: 0 as LPCWSTR,
+                lpszClassName: class_name.as_ptr(),
+                hIconSm: 0 as HICON,
+            };
+
+            if user32::RegisterClassExW(&window_class) == 0 {
+                return Err(kernel32::GetLastError());
+            }
+
+            user32::CreateWindowExW(
+                0,
+                class_name.as_ptr(),
+                0 as LPCWSTR,
+                winuser::WS_POPUP | winuser::WS_BORDER,
+                0,
+                0,
+                w,
+                h,
+                0 as HWND,
+                0 as HMENU,
+                0 as HINSTANCE,
+                0 as LPVOID)
+        };
+
+        // Creation is a 2-step process:
+        //
+        //   1. Create the shell HWND (above)
+        //   2. Add all window children
+        //
+        // If we error on step 2, we must destroy the window instance before returning
+        // The parent HWND is not managed and will be forgotten on an early return
+        // The easiest way to ensure this is to perform the rest of the layout in a separate funcction
+        let create_result = PopupWindow::new_layout(hwnd);
+
+        if let Err(_) = create_result {
+            unsafe { user32::DestroyWindow(hwnd); }
+        }
+
+        create_result
+    }
+
+    fn new_layout(hwnd: HWND) -> Win32Result<PopupWindow> {
         // Create controls
-        let window_bounds = get_window_bounds(hwnd);
-        let edit_box = try!{ create_edit_box(hwnd, window_bounds) };
+        let bounds_window = get_window_bounds(hwnd);
+
+        let edit_box = {
+            let height = 22;
+            let padding = (15, 0, 15, 0);
+            let bounds_edit = calc_window_pos(
+                bounds_window,
+                None,
+                Some(height),
+                None,
+                Some(padding),
+                HorizontalAlignment::Center,
+                VerticalAlignment::Center);
+
+            try!{ create_edit_box(hwnd, bounds_edit) }
+        };
 
         // Set initial focus
         unsafe { user32::SetFocus(edit_box.hwnd); }
@@ -159,75 +232,18 @@ impl EditBox {
 }
 
 pub fn create_window() -> Win32Result<PopupWindowShared> {
-    let (w, h) = WIN_DIMENSIONS;
-    let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
-        .encode_wide()
-        .chain(::std::iter::once(0))
-        .collect();
+    let window = PopupWindow::new();
 
-    let hwnd = unsafe {
-        let window_class = WNDCLASSEXW {
-        	cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-        	style: winuser::CS_HREDRAW | winuser::CS_VREDRAW,
-        	lpfnWndProc: Some(window_proc),
-        	cbClsExtra: 0,
-        	cbWndExtra: 0,
-        	hInstance: 0 as HINSTANCE,
-        	hIcon: 0 as HICON,
-        	hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
-        	hbrBackground: 0 as HBRUSH,
-        	lpszMenuName: 0 as LPCWSTR,
-        	lpszClassName: class_name.as_ptr(),
-        	hIconSm: 0 as HICON,
-        };
+    window.map(|window| {
+        let mut map = POPUP_INSTANCES.lock().unwrap();
+        let shared = map.set(window.hwnd, window);
 
-        if user32::RegisterClassExW(&window_class) == 0 {
-            return Err(kernel32::GetLastError());
-        }
-
-        user32::CreateWindowExW(
-            0,
-            class_name.as_ptr(),
-            0 as LPCWSTR,
-            winuser::WS_POPUP | winuser::WS_BORDER,
-            0,
-            0,
-            w,
-            h,
-            0 as HWND,
-            0 as HMENU,
-            0 as HINSTANCE,
-            0 as LPVOID)
-    };
-    
-    let window = PopupWindow::new(hwnd);
-
-    match window {
-        Ok(window) => {
-            let ref mut map = POPUP_INSTANCES.lock().unwrap();
-            let shared = map.set(hwnd, window);
-
-            Ok(shared)
-        },
-
-        Err(e) => {
-            unsafe { user32::DestroyWindow(hwnd); }
-            Err(e)
-        }
-    }
+        shared
+    })
 }
 
 fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<EditBox> {
-    let height = 22;
-    let padding = (15, 0, 15, 0);
-    let (x, y, w, h) = calc_window_pos(
-        bounds,
-        None,
-        Some(height),
-        None,
-        Some(padding),
-        HorizontalAlignment::Center,
-        VerticalAlignment::Center);
+    let (x, y, w, h) = bounds;
 
     // Using Edit Controls
     // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
