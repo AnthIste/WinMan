@@ -46,6 +46,9 @@ impl PopupWindow {
         let window_bounds = get_window_bounds(hwnd);
         let edit_box = try!{ create_edit_box(hwnd, window_bounds) };
 
+        // Set initial focus
+        unsafe { user32::SetFocus(edit_box.hwnd); }
+
         // Create brush resources
         // TODO: dispose
         let hbrush_primary = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
