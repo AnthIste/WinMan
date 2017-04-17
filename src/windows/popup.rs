@@ -199,12 +199,21 @@ pub fn create_window() -> Win32Result<PopupWindowShared> {
             0 as HINSTANCE,
             0 as LPVOID)
     };
+    
+    let window = PopupWindow::new(hwnd);
 
-    let ref mut map = POPUP_INSTANCES.lock().unwrap();
+    match window {
+        Ok(window) => {
+            let ref mut map = POPUP_INSTANCES.lock().unwrap();
+            let shared = map.set(hwnd, window);
 
-    match map.get(hwnd) {
-        Some(shared) => Ok(shared),
-        None => Err(map.get_err().expect("Either window or err must be set after window creation"))
+            Ok(shared)
+        },
+
+        Err(e) => {
+            unsafe { user32::DestroyWindow(hwnd); }
+            Err(e)
+        }
     }
 }
 
@@ -256,7 +265,7 @@ fn create_edit_box(parent: HWND, bounds: Bounds) -> Win32Result<EditBox> {
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let lresult = POPUP_INSTANCES.try_lock().ok().and_then(|mut map| {
+    let lresult = POPUP_INSTANCES.try_lock().ok().and_then(|map| {
         let instance = map.get(hwnd);
 
         match instance {
@@ -299,19 +308,6 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
                 },
                 
                 _ => None
-            },
-
-            // Window creating
-            None if msg == WM_CREATE => {
-                let instance = PopupWindow::new(hwnd);
-                let lresult = match instance {
-                    Err(_) => -1,
-                    _ => 0,
-                };
-
-                map.set(hwnd, instance);
-
-                Some(lresult)
             },
 
             // Unknown window lifecycle
