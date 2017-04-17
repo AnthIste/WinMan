@@ -308,7 +308,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
                 return 0;
             },
             
-            _ => ()
+            _ => {}
         }
     };
 
@@ -326,27 +326,25 @@ unsafe extern "system" fn subclass_proc_edit(hwnd: HWND, msg: UINT, wparam: WPAR
         user32::SendMessageW(hwnd_parent, WM_NOTIFY, 0 as WPARAM, (&nmhdr as *const _) as LPARAM);
     };
 
-    let lresult = match msg {
+    match msg {
         WM_CHAR => {
             match wparam as i32 {
                 VK_ESCAPE => {
                     notify_parent(MSG_NOTIFY_ESCAPE);
-                    Some(0)
+                    return 0;
                 },
 
                 VK_RETURN => {
                     notify_parent(MSG_NOTIFY_RETURN);
-                    Some(0)
+                    return 0;
                 },
 
-                _ => {
-                    None
-                }
+                _ => {}
             }
         },
         
-        _ => None
-    };
+        _ => {}
+    }
 
-    lresult.unwrap_or_else(|| comctl32::DefSubclassProc(hwnd, msg, wparam, lparam))
+    comctl32::DefSubclassProc(hwnd, msg, wparam, lparam)
 }
