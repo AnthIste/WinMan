@@ -111,6 +111,29 @@ impl PopupWindow {
         }
     }
 
+    fn wm_erasebkgnd(&self, hdc: HDC) -> LRESULT {
+        let brush = self.hbrush_primary;
+
+        // Background
+        let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
+        unsafe {
+            user32::GetClientRect(self.hwnd, &mut rc);
+            user32::FillRect(hdc, &rc, brush);
+        }
+
+        // Border
+        self.hbrush_secondary as LRESULT
+    }
+
+    fn wm_ctlcoloredit(&self, hdc: HDC) -> LRESULT {
+        unsafe {
+            gdi32::SetBkColor(hdc, THEME_EDIT_BG_COLOR);
+            gdi32::SetTextColor(hdc, THEME_EDIT_COLOR);
+        }
+
+        self.hbrush_secondary as LRESULT
+    }
+
     pub fn hide(&self) {
         unsafe {
             user32::ShowWindow(self.hwnd, 0); // SW_HIDE
@@ -232,51 +255,22 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             Some(instance) => match msg {
                 WM_ERASEBKGND => {
                     let hdc: HDC = wparam as HDC;
-                    let brush = instance.borrow().hbrush_primary;
-
-                    // Background
-                    let mut rc = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-                    user32::GetClientRect(hwnd, &mut rc);
-                    user32::FillRect(hdc, &rc, brush);
-
-                    // Border
-                    let dc_brush = instance.borrow().hbrush_secondary;
-                    Some(dc_brush as LRESULT)
+                    let lresult = instance.borrow().wm_erasebkgnd(hdc);
+                    
+                    Some(lresult)
                 },
 
                 WM_CTLCOLOREDIT => {
                     let hdc: HDC = wparam as HDC;
-                    gdi32::SetBkColor(hdc, THEME_EDIT_BG_COLOR);
-                    gdi32::SetTextColor(hdc, THEME_EDIT_COLOR);
+                    let lresult = instance.borrow().wm_ctlcoloredit(hdc);
 
-                    let dc_brush = instance.borrow().hbrush_secondary;
-                    Some(dc_brush as LPARAM)
-                },
-
-                WM_KEYDOWN => {
-                    println!("WM_KEYDOWN: {} / {} {}", hwnd as u32, wparam as u32, lparam as u32);
-                    None
-                },
-
-                WM_HOTKEY => {
-                    let _modifiers = LOWORD(lparam as DWORD);
-                    let _vk = HIWORD(lparam as DWORD);
-
-                    Some(0)
-                },
-
-                WM_COMMAND => {
-                    let _command = LOWORD(wparam as DWORD);
-
-                    Some(0)
+                    Some(lresult)
                 },
 
                 WM_DESTROY => {
                     user32::PostQuitMessage(0);
                     Some(0)
                 },
-                
-                user if user >= WM_USER => Some(0),
                 
                 _ => None
             },
