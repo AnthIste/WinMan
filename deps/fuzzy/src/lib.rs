@@ -4,7 +4,7 @@ use std::vec::Vec;
 
 use regex::{Regex, RegexBuilder};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum FuzzyResult {
     ExactMatch,
     StartsWith,
@@ -13,6 +13,19 @@ enum FuzzyResult {
     Contains,
     Vague,
     None,
+}
+
+fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
+    let mut matches: Vec<FuzzyResult> = terms.iter()
+        .map(|t| fuzzy_match(t, input))
+        .collect();
+
+    matches.sort();
+
+    matches
+        .first()
+        .map(|ref m| *m.clone())
+        .unwrap_or(FuzzyResult::None)
 }
 
 fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
@@ -133,7 +146,7 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{fuzzy_match, FuzzyResult};
+    use super::{fuzzy_match, fuzzy_query, FuzzyResult};
 
     #[test]
     fn it_works() {
@@ -206,6 +219,15 @@ mod tests {
     fn none() {
         assert_eq!(FuzzyResult::None, fuzzy_match("abc", "cde"));
         assert_eq!(FuzzyResult::None, fuzzy_match("mc", "My"));
+    }
+
+    #[test]
+    fn query_exact_match() {
+        assert_eq!(FuzzyResult::ExactMatch, fuzzy_query(&["hello"], "hello"));
+        assert_eq!(FuzzyResult::ExactMatch, fuzzy_query(&["hello", "world"], "hello"));
+        assert_eq!(FuzzyResult::ExactMatch, fuzzy_query(&["world", "hello"], "hello"));
+        assert_eq!(FuzzyResult::ExactMatch, fuzzy_query(&["MyClass", "MC"], "MyClass"));
+        assert_eq!(FuzzyResult::ExactMatch, fuzzy_query(&["MC", "MyClass"], "MyClass"));
     }
 
     #[test]
