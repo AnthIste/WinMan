@@ -184,6 +184,8 @@ mod tests {
     #[test]
     fn smart_camel() {
         assert_eq!(FuzzyResult::SmartCamel, fuzzy_match("SuCl", "SuperClass"));
+        assert_eq!(FuzzyResult::SmartCamel, fuzzy_match("SCl", "SuperClass"));
+        assert_eq!(FuzzyResult::SmartCamel, fuzzy_match("Cl", "SuperClass"));
     }
 
     #[test]
@@ -197,6 +199,13 @@ mod tests {
     fn vague() {
         assert_eq!(FuzzyResult::Vague, fuzzy_match("ya", "MyClass"));
         assert_eq!(FuzzyResult::Vague, fuzzy_match("mass", "MyOtherClass"));
+        assert_eq!(FuzzyResult::Vague, fuzzy_match("sucla", "SuperClass"));
+    }
+
+    #[test]
+    fn none() {
+        assert_eq!(FuzzyResult::None, fuzzy_match("abc", "cde"));
+        assert_eq!(FuzzyResult::None, fuzzy_match("mc", "My"));
     }
 
     #[test]
