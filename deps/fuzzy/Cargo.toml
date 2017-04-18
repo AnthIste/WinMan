@@ -1,0 +1,7 @@
+[package]
+name = "fuzzy"
+version = "0.1.0"
+authors = ["Ruben Bakker <rubenbak@gmail.com>"]
+
+[dependencies]
+regex = "0.2.1"
