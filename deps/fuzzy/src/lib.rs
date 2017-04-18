@@ -4,7 +4,7 @@ use std::vec::Vec;
 
 use regex::{Regex, RegexBuilder};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd)]
 enum FuzzyResult {
     ExactMatch,
     StartsWith,
@@ -209,45 +209,11 @@ mod tests {
     }
 
     #[test]
-    fn smart_camel_regex() {
-        use regex::Regex;
-
-        let re = Regex::new(r"[A-Z][^A-Z]*").unwrap();
-
-        let capss: Vec<_> = re.captures_iter("MyCl").collect();
-        assert_eq!(2, capss.len());
-        let caps = &capss[0];
-        assert_eq!("My", caps.get(0).unwrap().as_str());
-        let caps = &capss[1];
-        assert_eq!("Cl", caps.get(0).unwrap().as_str());
-
-        let capss: Vec<_> = re.captures_iter("MCl").collect();
-        assert_eq!(2, capss.len());
-        let caps = &capss[0];
-        assert_eq!("M", caps.get(0).unwrap().as_str());
-        let caps = &capss[1];
-        assert_eq!("Cl", caps.get(0).unwrap().as_str());
-
-        let capss: Vec<_> = re.captures_iter("Notice Me Senpai").collect();
-        assert_eq!(3, capss.len());
-        let caps = &capss[0];
-        assert_eq!("Notice ", caps.get(0).unwrap().as_str());
-        let caps = &capss[1];
-        assert_eq!("Me ", caps.get(0).unwrap().as_str());
-        let caps = &capss[2];
-        assert_eq!("Senpai", caps.get(0).unwrap().as_str());
-
-        let capss: Vec<_> = re.captures_iter("lowercase").collect();
-        assert_eq!(0, capss.len());
+    fn partialord() {
+        assert!(FuzzyResult::ExactMatch < FuzzyResult::StartsWith);
+        assert!(FuzzyResult::ExactMatch <= FuzzyResult::StartsWith);
+        assert!(FuzzyResult::StartsWith > FuzzyResult::ExactMatch);
+        assert!(FuzzyResult::StartsWith >= FuzzyResult::ExactMatch);
     }
-
-        // assert!(fuzzy_match("ins", "Insurance"));
-        // assert!(fuzzy_match("insdata", "InsuranceData"));
-        // assert!(fuzzy_match("bond", "BondData"));
-        // assert!(fuzzy_match("bd", "BondData"));
-        // assert!(fuzzy_match("cust", "CustomerGateway"));
-        // assert!(fuzzy_match("cgw", "CustomerGateway"));
-        // assert!(fuzzy_match("sp", "ServiceProviderGateway"));
-        // assert!(fuzzy_match("sub", "Sublime Text"));
 
 }
