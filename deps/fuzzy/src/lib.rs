@@ -29,7 +29,6 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
         let regex_str = format!(r"^{}$", query);
         let re = RegexBuilder::new(&regex_str)
             .case_insensitive(true)
-            .ignore_whitespace(true)
             .build();
 
         if let Ok(re) = re {
@@ -44,7 +43,6 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
         let regex_str = format!(r"^{}", &query);
         let re = RegexBuilder::new(&regex_str)
             .case_insensitive(true)
-            .ignore_whitespace(true)
             .build();
 
         if let Ok(re) = re {
@@ -56,6 +54,25 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
 
     // Smart camel
     {
+        let re = Regex::new(r"[A-Z][^A-Z]*").unwrap();
+        let captures: Vec<_> = re.captures_iter(&query).collect();
+
+        if captures.len() > 0 {
+            let mut regex_str = String::new();
+            for capture in captures {
+                let term = capture.get(0).unwrap().as_str();
+                let part = format!(r"({}\w*)", term);
+                regex_str.push_str(&part);
+            }
+
+            let re = Regex::new(&regex_str);
+
+            if let Ok(re) = re {
+                if re.is_match(&input) {
+                    return FuzzyResult::SmartCamel;
+                }
+            }
+        }
     }
 
     // Upper camel
@@ -68,7 +85,6 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
 
         let re = RegexBuilder::new(&regex_str)
             .case_insensitive(false)
-            .ignore_whitespace(true)
             .build();
 
         if let Ok(re) = re {
@@ -166,6 +182,11 @@ mod tests {
     }
 
     #[test]
+    fn smart_camel() {
+        assert_eq!(FuzzyResult::SmartCamel, fuzzy_match("SuCl", "SuperClass"));
+    }
+
+    #[test]
     fn upper_camel() {
         assert_eq!(FuzzyResult::UpperCamel, fuzzy_match("mc", "MyClass"));
         assert_eq!(FuzzyResult::UpperCamel, fuzzy_match("mc", "MyOtherClass"));
@@ -206,6 +227,9 @@ mod tests {
         assert_eq!("Me ", caps.get(0).unwrap().as_str());
         let caps = &capss[2];
         assert_eq!("Senpai", caps.get(0).unwrap().as_str());
+
+        let capss: Vec<_> = re.captures_iter("lowercase").collect();
+        assert_eq!(0, capss.len());
     }
 
         // assert!(fuzzy_match("ins", "Insurance"));
