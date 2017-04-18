@@ -10,7 +10,6 @@ use kernel32;
 use user32;
 use gdi32;
 use winapi::*;
-use winapi::winuser;
 
 use utils::Win32Result;
 use windows::*;
@@ -23,7 +22,7 @@ const THEME_EDIT_BG_COLOR: u32 = 0x00323232;
 const MSG_NOTIFY_RETURN: u32 = 1;
 const MSG_NOTIFY_ESCAPE: u32 = 2;
 
-type PopupInstances = InstanceMap<PopupWindow>;
+type PopupInstances = ::windows::InstanceMap<PopupWindow>;
 unsafe impl Send for PopupInstances {}
 
 lazy_static! {
