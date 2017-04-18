@@ -8,6 +8,7 @@ use regex::{Regex, RegexBuilder};
 enum FuzzyResult {
     ExactMatch,
     StartsWith,
+    SmartCamel,
     UpperCamel,
     Contains,
     Vague,
@@ -51,6 +52,10 @@ fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
                 return FuzzyResult::StartsWith;
             }
         }
+    }
+
+    // Smart camel
+    {
     }
 
     // Upper camel
@@ -171,6 +176,36 @@ mod tests {
     fn vague() {
         assert_eq!(FuzzyResult::Vague, fuzzy_match("ya", "MyClass"));
         assert_eq!(FuzzyResult::Vague, fuzzy_match("mass", "MyOtherClass"));
+    }
+
+    #[test]
+    fn smart_camel_regex() {
+        use regex::Regex;
+
+        let re = Regex::new(r"[A-Z][^A-Z]*").unwrap();
+
+        let capss: Vec<_> = re.captures_iter("MyCl").collect();
+        assert_eq!(2, capss.len());
+        let caps = &capss[0];
+        assert_eq!("My", caps.get(0).unwrap().as_str());
+        let caps = &capss[1];
+        assert_eq!("Cl", caps.get(0).unwrap().as_str());
+
+        let capss: Vec<_> = re.captures_iter("MCl").collect();
+        assert_eq!(2, capss.len());
+        let caps = &capss[0];
+        assert_eq!("M", caps.get(0).unwrap().as_str());
+        let caps = &capss[1];
+        assert_eq!("Cl", caps.get(0).unwrap().as_str());
+
+        let capss: Vec<_> = re.captures_iter("Notice Me Senpai").collect();
+        assert_eq!(3, capss.len());
+        let caps = &capss[0];
+        assert_eq!("Notice ", caps.get(0).unwrap().as_str());
+        let caps = &capss[1];
+        assert_eq!("Me ", caps.get(0).unwrap().as_str());
+        let caps = &capss[2];
+        assert_eq!("Senpai", caps.get(0).unwrap().as_str());
     }
 
         // assert!(fuzzy_match("ins", "Insurance"));
