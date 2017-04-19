@@ -93,6 +93,8 @@ pub fn main() {
                     // https://github.com/retep998/wio-rs/blob/master/src/apc.rs
                     // https://github.com/retep998/wio-rs/blob/master/src/wide.rs
                     // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633497(v=vs.85).aspx
+                    // use mem::Zero() instead of default::Default()
+                    // WindowsBunny on IRC
 
                     let windows: Vec<String> = Vec::new();
                     unsafe { user32::EnumWindows(Some(enum_windows_proc), (&windows as *const _) as LPARAM); }
