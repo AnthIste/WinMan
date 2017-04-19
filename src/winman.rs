@@ -82,8 +82,16 @@ pub fn main() {
         use windows::messages::PopupMsg;
         while let Ok(event) = rx.try_recv() {
             match event {
-                PopupMsg::Search(s) => {
+                PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);
+                },
+
+                PopupMsg::Search(None) => {
+                    println!("Search: <null>");
+                },
+
+                PopupMsg::Accept(s) => {
+                    println!("Accept: {}", s);
                 }
             }
         }

@@ -23,6 +23,7 @@ const THEME_EDIT_BG_COLOR: u32 = 0x00323232;
 
 const MSG_NOTIFY_RETURN: u32 = 1;
 const MSG_NOTIFY_ESCAPE: u32 = 2;
+const MSG_NOTIFY_CHAR: u32 = 3;
 
 type PopupInstances = ::windows::InstanceMap<PopupWindow>;
 unsafe impl Send for PopupInstances {}
@@ -209,8 +210,14 @@ impl PopupWindow {
 
             MSG_NOTIFY_RETURN => {
                 if let Some(query) = self.edit_box.get_text() {
-                    let _ = self.tx.send(PopupMsg::Search(query));
+                    let _ = self.tx.send(PopupMsg::Accept(query));
+                    self.edit_box.clear();
                 }
+            },
+
+            MSG_NOTIFY_CHAR => {
+                let query = self.edit_box.get_text();
+                let _ = self.tx.send(PopupMsg::Search(query));
             },
 
             _ => ()
@@ -290,6 +297,7 @@ impl EditBox {
 
             user32::SendMessageW(self.hwnd, WM_GETTEXT, BUFFER_LEN as WPARAM, buffer.as_ptr() as LPARAM);
 
+            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
             let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
             let slice = std::slice::from_raw_parts(buffer.as_ptr(), null);
 
@@ -300,6 +308,12 @@ impl EditBox {
             Some(text)
         } else {
             None
+        }
+    }
+
+    fn clear(&self) {
+        unsafe {
+            user32::SendMessageW(self.hwnd, WM_SETTEXT, 0, 0);
         }
     }
 }
@@ -379,7 +393,11 @@ unsafe extern "system" fn subclass_proc_edit(hwnd: HWND, msg: UINT, wparam: WPAR
                     return 0;
                 },
 
-                _ => {}
+                _ => {
+                    comctl32::DefSubclassProc(hwnd, msg, wparam, lparam);
+                    notify_parent(MSG_NOTIFY_CHAR);
+                    return 0;
+                }
             }
         },
         

@@ -1,3 +1,4 @@
 pub enum PopupMsg {
-    Search(String)
+    Search(Option<String>),
+    Accept(String),
 }
