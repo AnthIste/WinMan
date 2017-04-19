@@ -1,7 +1,6 @@
 use std;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::sync::Mutex;
 use std::ffi::{OsString, OsStr};
 use std::os::windows::ffi::{OsStringExt, OsStrExt};
 
@@ -25,14 +24,6 @@ const MSG_NOTIFY_RETURN: u32 = 1;
 const MSG_NOTIFY_ESCAPE: u32 = 2;
 const MSG_NOTIFY_CHAR: u32 = 3;
 
-type PopupInstances = ::windows::InstanceMap<PopupWindow>;
-unsafe impl Send for PopupInstances {}
-
-use std::any::Any;
-lazy_static! {
-    static ref POPUP_INSTANCES: Mutex<PopupInstances> = Mutex::new(PopupInstances::new());
-}
-
 pub struct PopupWindow {
     hwnd: HWND,
     edit_box: EditBox,
@@ -43,8 +34,33 @@ pub struct PopupWindow {
 }
 struct EditBox { hwnd: HWND }
 
+pub struct ManagedWindow<T>(pub HWND, pub Rc<RefCell<T>>);
+
+impl<T> ManagedWindow<T> {
+    unsafe fn new(hwnd: HWND, window: T) -> Self {
+        let shared = Rc::new(RefCell::new(window));
+        user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as LONG_PTR);
+
+        println!("Window {:?} is managed", hwnd);
+
+        ManagedWindow(hwnd, shared)
+    }
+}
+
+impl<T> Drop for ManagedWindow<T> {
+    fn drop(&mut self) {
+        let hwnd = self.0;
+
+        if !hwnd.is_null() {
+            unsafe { user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0); }
+        }
+
+        println!("Window {:?} is kill", hwnd);
+    }
+}
+
 impl PopupWindow {
-    pub fn new() -> Win32Result<Rc<RefCell<PopupWindow>>> {
+    pub fn new() -> Win32Result<ManagedWindow<PopupWindow>> {
         let (w, h) = WIN_DIMENSIONS;
         let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
             .encode_wide()
@@ -99,12 +115,8 @@ impl PopupWindow {
 
         match create_result {
             Ok(window) => {
-                let mut map = POPUP_INSTANCES.lock().unwrap();
-                let shared = map.set(window.hwnd, window);
-
-                unsafe { user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as LONG_PTR); }
-
-                Ok(shared)
+                let managed = unsafe { ManagedWindow::new(hwnd, window) };
+                Ok(managed)
             },
 
             Err(e) => {

@@ -1,40 +1,9 @@
-use std::collections::HashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use user32;
 use winapi::windef::*;
 use winapi::winuser;
 
 pub mod messages;
 pub mod popup;
-
-struct InstanceMap<T> {
-    map: HashMap<u32, Rc<RefCell<T>>>,
-}
-
-impl<T> InstanceMap<T> {
-    fn new() -> Self {
-        InstanceMap {
-            map: HashMap::new(),
-        }
-    }
-
-    fn set(&mut self, hwnd: HWND, instance: T) -> Rc<RefCell<T>> {
-        let key = hwnd as u32;
-        let shared = Rc::new(RefCell::new(instance));
-
-        self.map.insert(key, shared.clone());
-
-        shared
-    }
-
-    fn get(&self, hwnd: HWND) -> Option<Rc<RefCell<T>>> {
-        let key = hwnd as u32;
-
-        self.map.get(&key).map(|rc| rc.clone())
-    }
-}
 
 pub type Bounds = (i32, i32, i32, i32);
 

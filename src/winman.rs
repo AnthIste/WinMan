@@ -55,7 +55,7 @@ pub fn main() {
     register_hotkeys(hwnd);
 
     // Popup window
-    let popup = PopupWindow::new()
+    let windows::popup::ManagedWindow(_, ref popup) = PopupWindow::new()
         .expect("Popup creation failed");
 
     let rx = popup.borrow().listen();
@@ -126,7 +126,7 @@ unsafe extern "system" fn enum_windows_proc(
         return FALSE;
     }
 
-    println!("enum_windows_proc {}", lparam);
+    println!("enum_windows_proc {:?} {}", hwnd, lparam);
     FALSE // Stop enumeration
 }
 
