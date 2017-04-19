@@ -87,7 +87,15 @@ pub fn main() {
                 PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);
 
-                    unsafe { user32::EnumWindows(Some(enum_windows_proc), 0 as LPARAM); }
+                    // <_habnabit>	salad, extern fn exportable<F>(mut func: F) where F: FnMut ... { func() }, then pass_to_ffi(|| do_whatever())
+                    // salad: Even for wndproc, you can store user data in the window itself
+                    // SetWindowLongPtr though, because 64bit is a thing
+                    // https://github.com/retep998/wio-rs/blob/master/src/apc.rs
+                    // https://github.com/retep998/wio-rs/blob/master/src/wide.rs
+                    // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633497(v=vs.85).aspx
+
+                    let windows: Vec<String> = Vec::new();
+                    unsafe { user32::EnumWindows(Some(enum_windows_proc), (&windows as *const _) as LPARAM); }
                 },
 
                 PopupMsg::Search(None) => {
@@ -107,11 +115,16 @@ pub fn main() {
     }
 }
 
+
 unsafe extern "system" fn enum_windows_proc(
   hwnd: HWND,
-  lParam: LPARAM
+  lparam: LPARAM
 ) -> BOOL {
-    println!("enum_windows_proc");
+    if lparam == 0 {
+        return FALSE;
+    }
+
+    println!("enum_windows_proc {}", lparam);
     FALSE // Stop enumeration
 }
 
