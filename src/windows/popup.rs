@@ -28,6 +28,7 @@ const MSG_NOTIFY_CHAR: u32 = 3;
 type PopupInstances = ::windows::InstanceMap<PopupWindow>;
 unsafe impl Send for PopupInstances {}
 
+use std::any::Any;
 lazy_static! {
     static ref POPUP_INSTANCES: Mutex<PopupInstances> = Mutex::new(PopupInstances::new());
 }
@@ -100,6 +101,8 @@ impl PopupWindow {
             Ok(window) => {
                 let mut map = POPUP_INSTANCES.lock().unwrap();
                 let shared = map.set(window.hwnd, window);
+
+                unsafe { user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as LONG_PTR); }
 
                 Ok(shared)
             },
@@ -318,17 +321,24 @@ impl EditBox {
     }
 }
 
+unsafe fn get_window_instance_mut<'a, T>(hwnd: HWND) -> Option<&'a mut T> {
+    let ptr = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut T;
+
+    if !ptr.is_null() {
+        Some(&mut *ptr)
+    } else {
+        None
+    }
+}
+
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let instance = {
-        let map = POPUP_INSTANCES.lock().unwrap();
-        map.get(hwnd)
-    };
+    let instance = get_window_instance_mut::<PopupWindow>(hwnd);
 
     if let Some(instance) = instance {
         match msg {
             WM_ERASEBKGND => {
                 let hdc: HDC = wparam as HDC;
-                let dc_brush = instance.borrow().wm_erasebkgnd(hdc);
+                let dc_brush = instance.wm_erasebkgnd(hdc);
                 let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
                 
                 return dc_brush as LRESULT;
@@ -336,7 +346,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 
             WM_CTLCOLOREDIT => {
                 let hdc: HDC = wparam as HDC;
-                let dc_brush = instance.borrow().wm_ctlcoloredit(hdc);
+                let dc_brush = instance.wm_ctlcoloredit(hdc);
                 let dc_brush = dc_brush.unwrap_or(0 as HBRUSH);
 
                 return dc_brush as LRESULT;
@@ -344,7 +354,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
 
             WM_NOTIFY => {
                 let nmhdr = lparam as *const winuser::NMHDR;
-                instance.borrow().wm_notify(&*nmhdr);
+                instance.wm_notify(&*nmhdr);
 
                 return 0;
             },
@@ -352,7 +362,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             WM_KEYDOWN => {
                 let vk = wparam as i32;
                 let flags = lparam as i32;
-                instance.borrow().wm_keydown(vk, flags);
+                instance.wm_keydown(vk, flags);
 
                 return 0;
             },
