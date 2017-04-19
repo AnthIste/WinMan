@@ -6,6 +6,7 @@ use user32;
 use winapi::windef::*;
 use winapi::winuser;
 
+pub mod messages;
 pub mod popup;
 
 struct InstanceMap<T> {

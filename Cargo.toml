@@ -18,3 +18,5 @@ kernel32-sys = "0.2.2"
 user32-sys = "0.1.2"
 gdi32-sys = "0.2.0"
 lazy_static = "0.1.16"
+fuzzy = { path = "deps/fuzzy" }
+spmc = "0.2.1"

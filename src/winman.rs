@@ -6,6 +6,7 @@ extern crate comctl32;
 extern crate kernel32;
 extern crate user32;
 extern crate gdi32;
+extern crate spmc;
 
 mod constants;
 mod utils;
@@ -56,6 +57,8 @@ pub fn main() {
     let popup = PopupWindow::new()
         .expect("Popup creation failed");
 
+    let rx = popup.borrow().listen();
+
     {
         let popup = popup.borrow();
         popup.show();
@@ -74,6 +77,15 @@ pub fn main() {
         while user32::GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
+
+            use windows::messages::PopupMsg;
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    PopupMsg::Search(s) => {
+                        println!("Search: {}", s);
+                    }
+                }
+            }
         }
     }
 }

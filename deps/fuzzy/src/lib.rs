@@ -24,7 +24,7 @@ fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
 
     matches
         .first()
-        .map(|ref m| *m.clone())
+        .map(|m| m.clone())
         .unwrap_or(FuzzyResult::None)
 }
 

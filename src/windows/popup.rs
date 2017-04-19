@@ -10,9 +10,11 @@ use kernel32;
 use user32;
 use gdi32;
 use winapi::*;
+use spmc;
 
 use utils::Win32Result;
 use windows::*;
+use windows::messages::PopupMsg;
 
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00222222;
@@ -34,6 +36,8 @@ pub struct PopupWindow {
     _edit_box: EditBox,
     hbrush_primary: HBRUSH,
     hbrush_secondary: HBRUSH,
+    tx: spmc::Sender<PopupMsg>,
+    rx: spmc::Receiver<PopupMsg>,
 }
 struct EditBox { hwnd: HWND }
 
@@ -132,13 +136,22 @@ impl PopupWindow {
         // TODO: dispose
         let hbrush_primary = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
         let hbrush_secondary = unsafe { gdi32::CreateSolidBrush(THEME_EDIT_BG_COLOR) };
-        
+
+        // Open a channel to broadcast UI events
+        let (tx, rx) = spmc::channel();
+
         Ok(PopupWindow {
             hwnd: hwnd,
             _edit_box: edit_box,
             hbrush_primary: hbrush_primary,
             hbrush_secondary: hbrush_secondary,
+            tx: tx,
+            rx: rx,
         })
+    }
+
+    pub fn listen(&self) -> spmc::Receiver<PopupMsg> {
+        self.rx.clone()
     }
 
     pub fn show(&self) {
@@ -196,6 +209,7 @@ impl PopupWindow {
 
             MSG_NOTIFY_RETURN => {
                 println!("MSG_NOTIFY_RETURN");
+                let _ = self.tx.send(PopupMsg::Search("WHY HELLO THERE MATE".to_string()));
             },
 
             _ => ()
