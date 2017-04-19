@@ -80,11 +80,14 @@ pub fn main() {
             user32::DispatchMessageW(&mut msg);
         }
 
-        use windows::messages::PopupMsg;
         while let Ok(event) = rx.try_recv() {
+            use windows::messages::PopupMsg;
+
             match event {
                 PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);
+
+                    unsafe { user32::EnumWindows(Some(enum_windows_proc), 0 as LPARAM); }
                 },
 
                 PopupMsg::Search(None) => {
@@ -102,6 +105,14 @@ pub fn main() {
             }
         }
     }
+}
+
+unsafe extern "system" fn enum_windows_proc(
+  hwnd: HWND,
+  lParam: LPARAM
+) -> BOOL {
+    println!("enum_windows_proc");
+    FALSE // Stop enumeration
 }
 
 fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
