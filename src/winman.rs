@@ -7,6 +7,7 @@ extern crate kernel32;
 extern crate user32;
 extern crate gdi32;
 extern crate spmc;
+extern crate fuzzy;
 
 mod constants;
 mod utils;
@@ -92,6 +93,11 @@ pub fn main() {
 
                 PopupMsg::Accept(s) => {
                     println!("Accept: {}", s);
+
+                    let item = "Hello World";
+                    let is_match = fuzzy::fuzzy_match(&s, item);
+
+                    println!("> {} == {:?}", item, is_match);
                 }
             }
         }

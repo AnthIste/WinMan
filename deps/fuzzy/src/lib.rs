@@ -5,7 +5,7 @@ use std::vec::Vec;
 use regex::{Regex, RegexBuilder};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum FuzzyResult {
+pub enum FuzzyResult {
     ExactMatch,
     StartsWith,
     SmartCamel,
@@ -15,7 +15,7 @@ enum FuzzyResult {
     None,
 }
 
-fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
+pub fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
     let mut matches: Vec<FuzzyResult> = terms.iter()
         .map(|t| fuzzy_match(t, input))
         .collect();
@@ -28,7 +28,7 @@ fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
         .unwrap_or(FuzzyResult::None)
 }
 
-fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
+pub fn fuzzy_match(query: &str, input: &str) -> FuzzyResult {
     let query = regex::escape(&query);
 
     // Clean up input
