@@ -2,8 +2,8 @@ use std;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::sync::Mutex;
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
+use std::ffi::{OsString, OsStr};
+use std::os::windows::ffi::{OsStringExt, OsStrExt};
 
 use comctl32;
 use kernel32;
@@ -33,7 +33,7 @@ lazy_static! {
 
 pub struct PopupWindow {
     hwnd: HWND,
-    _edit_box: EditBox,
+    edit_box: EditBox,
     hbrush_primary: HBRUSH,
     hbrush_secondary: HBRUSH,
     tx: spmc::Sender<PopupMsg>,
@@ -142,7 +142,7 @@ impl PopupWindow {
 
         Ok(PopupWindow {
             hwnd: hwnd,
-            _edit_box: edit_box,
+            edit_box: edit_box,
             hbrush_primary: hbrush_primary,
             hbrush_secondary: hbrush_secondary,
             tx: tx,
@@ -208,8 +208,9 @@ impl PopupWindow {
             },
 
             MSG_NOTIFY_RETURN => {
-                println!("MSG_NOTIFY_RETURN");
-                let _ = self.tx.send(PopupMsg::Search("WHY HELLO THERE MATE".to_string()));
+                if let Some(query) = self.edit_box.get_text() {
+                    let _ = self.tx.send(PopupMsg::Search(query));
+                }
             },
 
             _ => ()
@@ -280,6 +281,26 @@ impl EditBox {
         Ok(EditBox {
             hwnd: hwnd
         })
+    }
+
+    fn get_text(&self) -> Option<String> {
+        let text = unsafe {
+            const BUFFER_LEN: usize = 250;
+            let buffer = [0u16; BUFFER_LEN];
+
+            user32::SendMessageW(self.hwnd, WM_GETTEXT, BUFFER_LEN as WPARAM, buffer.as_ptr() as LPARAM);
+
+            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
+            let slice = std::slice::from_raw_parts(buffer.as_ptr(), null);
+
+            OsString::from_wide(slice).to_string_lossy().into_owned()
+        };
+
+        if text.len() > 0 {
+            Some(text)
+        } else {
+            None
+        }
     }
 }
 

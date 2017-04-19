@@ -73,17 +73,17 @@ pub fn main() {
         pt: POINT { x: 0, y: 0 },
     };
 
-    unsafe {
-        while user32::GetMessageW(&mut msg, 0 as HWND, 0, 0) > 0 {
+    while unsafe { user32::GetMessageW(&mut msg, 0 as HWND, 0, 0) } > 0 {
+        unsafe {
             user32::TranslateMessage(&mut msg);
             user32::DispatchMessageW(&mut msg);
+        }
 
-            use windows::messages::PopupMsg;
-            while let Ok(event) = rx.try_recv() {
-                match event {
-                    PopupMsg::Search(s) => {
-                        println!("Search: {}", s);
-                    }
+        use windows::messages::PopupMsg;
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                PopupMsg::Search(s) => {
+                    println!("Search: {}", s);
                 }
             }
         }
