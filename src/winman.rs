@@ -85,12 +85,35 @@ pub fn main() {
 
             match event {
                 PopupMsg::Show => {
-                    // let windows: Vec<String> = Vec::new();
+                    let mut windows: Vec<String> = Vec::new();
 
                     enum_windows(|hwnd| {
-                        println!("We're enuming windows with a closure! {:?}", hwnd);
-                        FALSE
+                        use std::ffi::OsString;
+                        use std::os::windows::ffi::OsStringExt;
+
+                        let text = unsafe {
+                            const BUFFER_LEN: usize = 250;
+                            let mut buffer = [0u16; BUFFER_LEN];
+
+                            user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32);
+
+                            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
+                            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
+                            let slice = std::slice::from_raw_parts(buffer.as_ptr(), null);
+
+                            OsString::from_wide(slice).to_string_lossy().into_owned()
+                        };
+
+                        if text.len() > 0 {
+                            windows.push(text);
+                        }
+
+                        TRUE
                     }).unwrap();
+
+                    for window in windows.iter().take(5) {
+                        println!("Window: {}", window);
+                    }
                 },
 
                 PopupMsg::Search(Some(s)) => {
@@ -124,26 +147,24 @@ pub fn main() {
 }
 
 // https://github.com/retep998/wio-rs/blob/master/src/apc.rs
-fn enum_windows<T>(func: T) -> Win32Result<()> where T: FnOnce(HWND) -> BOOL + 'static {
-    unsafe extern "system" fn helper<T: FnOnce(HWND) -> BOOL + 'static>(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let func = Box::from_raw(lparam as *mut T);
-        func(hwnd)
+fn enum_windows<T>(func: T) -> Win32Result<()> where T: FnMut(HWND) -> BOOL {
+    unsafe extern "system" fn helper<T: FnMut(HWND) -> BOOL>(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let mut func = Box::from_raw(lparam as *mut T); // Take ownership
+        let result = func(hwnd);
+        let _ = Box::into_raw(func); // Release ownership (do not free)
+
+        result
     }
 
-    let thing = Box::into_raw(Box::new(func)) as LPARAM;
-    let err = unsafe {
-        user32::EnumWindows(Some(helper::<T>), thing);
-        kernel32::GetLastError()
-    };
+    unsafe {
+        let ppfn = Box::into_raw(Box::new(func)) as LPARAM;
+        user32::EnumWindows(Some(helper::<T>), ppfn);
+        Box::from_raw(ppfn as *mut T); // Free
+    }
 
-    match err {
+    match unsafe { kernel32::GetLastError() } {
         0 => Ok(()),
-
-        _ => {
-            // If it fails we still need to deallocate the function
-            unsafe { Box::from_raw(thing as *mut T); }
-            Err(err)
-        }
+        err => Err(err)
     }
 }
 
