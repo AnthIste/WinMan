@@ -309,7 +309,7 @@ impl EditBox {
 
     fn get_text(&self) -> Option<String> {
         let text = unsafe {
-            const BUFFER_LEN: usize = 250;
+            const BUFFER_LEN: usize = 1024;
             let buffer = [0u16; BUFFER_LEN];
 
             user32::SendMessageW(self.hwnd, WM_GETTEXT, BUFFER_LEN as WPARAM, buffer.as_ptr() as LPARAM);

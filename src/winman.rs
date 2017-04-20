@@ -66,7 +66,7 @@ pub fn main() {
     }
 
     // Persistent state    
-    let mut windows: Vec<String> = Vec::new();
+    let mut window_list: Vec<(HWND, String)> = Vec::new();
 
     let mut msg: MSG = MSG {
         hwnd: hwnd,
@@ -88,31 +88,8 @@ pub fn main() {
 
             match event {
                 PopupMsg::Show => {
-                    windows.clear();
-
-                    enum_windows(|hwnd| {
-                        use std::ffi::OsString;
-                        use std::os::windows::ffi::OsStringExt;
-
-                        let text = unsafe {
-                            const BUFFER_LEN: usize = 250;
-                            let mut buffer = [0u16; BUFFER_LEN];
-
-                            user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32);
-
-                            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
-                            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
-                            let slice = std::slice::from_raw_parts(buffer.as_ptr(), null);
-
-                            OsString::from_wide(slice).to_string_lossy().into_owned()
-                        };
-
-                        if text.len() > 0 {
-                            windows.push(text);
-                        }
-
-                        TRUE
-                    }).unwrap();
+                    window_list.clear();
+                    get_window_list(&mut window_list);
                 },
 
                 PopupMsg::Search(Some(s)) => {
@@ -140,8 +117,10 @@ pub fn main() {
 
                     println!("> {} == {:?}", item, is_match);
 
-                    for window in windows.iter().take(5) {
-                        println!("Window: {}", window);
+                    let limit = 5;
+                    println!("=== TOP {} / {} WINDOWS ===", limit, window_list.len());
+                    for window in window_list.iter().take(limit) {
+                        println!("Window: {:?}", window);
                     }
                 }
             }
@@ -149,8 +128,39 @@ pub fn main() {
     }
 }
 
+fn get_window_list(vec: &mut Vec<(HWND, String)>) {
+    const BUFFER_LEN: usize = 1024;
+    let mut buffer = [0u16; BUFFER_LEN];
+
+    enum_windows(|hwnd| {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::OsStringExt;
+
+        {
+            // TODO: dynamic buffer with GetWindowTextLength
+            // The return value, however, will always be at least as large as the actual
+            // length of the text; you can thus always use it to guide buffer allocation
+            // (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633521(v=vs.85).aspx)
+            let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
+
+            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
+            if len > 0 {
+                let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
+                let slice = unsafe { std::slice::from_raw_parts(buffer.as_ptr(), null) };
+                let text = OsString::from_wide(slice).to_string_lossy().into_owned();
+
+                vec.push((hwnd, text));
+            }
+        };
+
+        TRUE
+    }).expect("Callback does not SetLastError");
+}
+
 // https://github.com/retep998/wio-rs/blob/master/src/apc.rs
-fn enum_windows<T>(func: T) -> Win32Result<()> where T: FnMut(HWND) -> BOOL {
+fn enum_windows<T>(func: T) -> Win32Result<()>
+    where T: FnMut(HWND) -> BOOL {
+
     unsafe extern "system" fn helper<T: FnMut(HWND) -> BOOL>(hwnd: HWND, lparam: LPARAM) -> BOOL {
         let mut func = Box::from_raw(lparam as *mut T); // Take ownership
         let result = func(hwnd);
