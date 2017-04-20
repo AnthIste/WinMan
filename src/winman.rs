@@ -64,7 +64,10 @@ pub fn main() {
         let popup = popup.borrow();
         popup.show();
     }
-    
+
+    // Persistent state    
+    let mut windows: Vec<String> = Vec::new();
+
     let mut msg: MSG = MSG {
         hwnd: hwnd,
         message: 0,
@@ -85,7 +88,7 @@ pub fn main() {
 
             match event {
                 PopupMsg::Show => {
-                    let mut windows: Vec<String> = Vec::new();
+                    windows.clear();
 
                     enum_windows(|hwnd| {
                         use std::ffi::OsString;
@@ -110,10 +113,6 @@ pub fn main() {
 
                         TRUE
                     }).unwrap();
-
-                    for window in windows.iter().take(5) {
-                        println!("Window: {}", window);
-                    }
                 },
 
                 PopupMsg::Search(Some(s)) => {
@@ -140,6 +139,10 @@ pub fn main() {
                     let is_match = fuzzy::fuzzy_match(&s, item);
 
                     println!("> {} == {:?}", item, is_match);
+
+                    for window in windows.iter().take(5) {
+                        println!("Window: {}", window);
+                    }
                 }
             }
         }
