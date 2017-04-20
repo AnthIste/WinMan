@@ -90,6 +90,8 @@ pub fn main() {
                 PopupMsg::Show => {
                     window_list.clear();
                     get_window_list(&mut window_list);
+
+                    println!("Grabbed {} window titles", window_list.len());
                 },
 
                 PopupMsg::Search(Some(s)) => {
@@ -112,15 +114,12 @@ pub fn main() {
                 PopupMsg::Accept(s) => {
                     println!("Accept: {}", s);
 
-                    let item = "Hello World";
-                    let is_match = fuzzy::fuzzy_match(&s, item);
+                    let finder = fuzzy::Finder::new(&s).unwrap();
 
-                    println!("> {} == {:?}", item, is_match);
-
-                    let limit = 5;
-                    println!("=== TOP {} / {} WINDOWS ===", limit, window_list.len());
-                    for window in window_list.iter().take(limit) {
-                        println!("Window: {:?}", window);
+                    let xx = window_list.iter().find(|w| finder.is_match(&w.1));
+                    match xx {
+                        Some(w) => println!("match! {:?}", w),
+                        None => println!("no match!")
                     }
                 }
             }

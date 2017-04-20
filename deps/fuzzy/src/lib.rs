@@ -15,6 +15,29 @@ pub enum FuzzyResult {
     None,
 }
 
+pub struct Finder {
+    re: Regex
+}
+
+impl Finder {
+    pub fn new(s: &str) -> Result<Self, ()> {
+        let re = RegexBuilder::new(&s)
+            .case_insensitive(true)
+            .build();
+
+        match re {
+            Ok(re) => Ok(Finder {
+                re: re
+            }),
+            Err(_) => Err(())
+        }
+    }
+
+    pub fn is_match(&self, s: &str) -> bool {
+        self.re.is_match(s)
+    }
+}
+
 pub fn fuzzy_query(terms: &[&str], input: &str) -> FuzzyResult {
     let mut matches: Vec<FuzzyResult> = terms.iter()
         .map(|t| fuzzy_match(t, input))
