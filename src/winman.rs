@@ -88,6 +88,11 @@ pub fn main() {
 
             match event {
                 PopupMsg::Show => {
+                    const BUFFER_LEN: usize = 1024;
+                    let mut buffer = [0u16; BUFFER_LEN];
+                    let len = unsafe { user32::GetWindowTextW(0x1019e as HWND, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
+                    println!("LEN LEN: {}", len);
+
                     window_list.clear();
                     get_window_list(&mut window_list);
 
@@ -135,22 +140,20 @@ fn get_window_list(vec: &mut Vec<(HWND, String)>) {
         use std::ffi::OsString;
         use std::os::windows::ffi::OsStringExt;
 
-        {
-            // TODO: dynamic buffer with GetWindowTextLength
-            // The return value, however, will always be at least as large as the actual
-            // length of the text; you can thus always use it to guide buffer allocation
-            // (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633521(v=vs.85).aspx)
-            let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
+        // TODO: dynamic buffer with GetWindowTextLength
+        // The return value, however, will always be at least as large as the actual
+        // length of the text; you can thus always use it to guide buffer allocation
+        // (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633521(v=vs.85).aspx)
+        let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
 
-            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
-            if len > 0 {
-                let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
-                let slice = unsafe { std::slice::from_raw_parts(buffer.as_ptr(), null) };
-                let text = OsString::from_wide(slice).to_string_lossy().into_owned();
+        // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
+        if len > 0 {
+            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
+            let slice = unsafe { std::slice::from_raw_parts(buffer.as_ptr(), null) };
+            let text = OsString::from_wide(slice).to_string_lossy().into_owned();
 
-                vec.push((hwnd, text));
-            }
-        };
+            vec.push((hwnd, text));
+        }
 
         TRUE
     }).expect("Callback does not SetLastError");
@@ -161,19 +164,15 @@ fn enum_windows<T>(func: T) -> Win32Result<()>
     where T: FnMut(HWND) -> BOOL {
 
     unsafe extern "system" fn helper<T: FnMut(HWND) -> BOOL>(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let mut func = Box::from_raw(lparam as *mut T); // Take ownership
-        let result = func(hwnd);
-        let _ = Box::into_raw(func); // Release ownership (do not free)
+        let ppfn = lparam as *mut T;
+        let mut func = &mut *ppfn;
 
-        result
+        func(hwnd)
     }
 
     let result = unsafe {
-        let ppfn = Box::into_raw(Box::new(func)) as LPARAM;
-        let result = user32::EnumWindows(Some(helper::<T>), ppfn);
-        Box::from_raw(ppfn as *mut T); // Free
-
-        result
+        let ppfn = (&func) as *const T;
+        user32::EnumWindows(Some(helper::<T>), ppfn as LPARAM)
     };
 
     match result {
