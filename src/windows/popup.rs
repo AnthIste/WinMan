@@ -186,6 +186,8 @@ impl PopupWindow {
             user32::SetWindowPos(self.hwnd, winuser::HWND_TOPMOST, x, y, w, h, 0);
             user32::ShowWindow(self.hwnd, 5); // SW_SHOW
         }
+
+        let _ = self.tx.send(PopupMsg::Show);
     }
 
     pub fn _hide(&self) {

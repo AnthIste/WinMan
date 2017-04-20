@@ -84,6 +84,15 @@ pub fn main() {
             use windows::messages::PopupMsg;
 
             match event {
+                PopupMsg::Show => {
+                    // let windows: Vec<String> = Vec::new();
+
+                    enum_windows(|hwnd| {
+                        println!("We're enuming windows with a closure! {:?}", hwnd);
+                        FALSE
+                    }).unwrap();
+                },
+
                 PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);
 
@@ -95,9 +104,6 @@ pub fn main() {
                     // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633497(v=vs.85).aspx
                     // use mem::Zero() instead of default::Default()
                     // WindowsBunny on IRC
-
-                    let windows: Vec<String> = Vec::new();
-                    unsafe { user32::EnumWindows(Some(enum_windows_proc), (&windows as *const _) as LPARAM); }
                 },
 
                 PopupMsg::Search(None) => {
@@ -117,17 +123,28 @@ pub fn main() {
     }
 }
 
-
-unsafe extern "system" fn enum_windows_proc(
-  hwnd: HWND,
-  lparam: LPARAM
-) -> BOOL {
-    if lparam == 0 {
-        return FALSE;
+// https://github.com/retep998/wio-rs/blob/master/src/apc.rs
+fn enum_windows<T>(func: T) -> Win32Result<()> where T: FnOnce(HWND) -> BOOL + 'static {
+    unsafe extern "system" fn helper<T: FnOnce(HWND) -> BOOL + 'static>(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let func = Box::from_raw(lparam as *mut T);
+        func(hwnd)
     }
 
-    println!("enum_windows_proc {:?} {}", hwnd, lparam);
-    FALSE // Stop enumeration
+    let thing = Box::into_raw(Box::new(func)) as LPARAM;
+    let err = unsafe {
+        user32::EnumWindows(Some(helper::<T>), thing);
+        kernel32::GetLastError()
+    };
+
+    match err {
+        0 => Ok(()),
+
+        _ => {
+            // If it fails we still need to deallocate the function
+            unsafe { Box::from_raw(thing as *mut T); }
+            Err(err)
+        }
+    }
 }
 
 fn create_window(window_proc: WNDPROC) -> Win32Result<HWND> {
