@@ -26,7 +26,7 @@ use winapi::winuser::*;
 use constants::*;
 use utils::Win32Result;
 use window_tracking::Config;
-use windows::popup::PopupWindow;
+use windows::popup::{PopupWindow, ManagedWindow};
 
 // Hotkey modifiers
 const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
@@ -47,23 +47,39 @@ fn load_config() -> Option<Config> {
     Some(Config::new())
 }
 
+struct AppWindow {
+    popup: ManagedWindow<PopupWindow>
+}
+
+impl AppWindow {
+    fn new(hwnd: HWND) -> ManagedWindow<Self> {
+        let popup = PopupWindow::new().expect("Popup creation failed");
+        let app = AppWindow {
+            popup: popup
+        };
+
+        unsafe { ManagedWindow::new(hwnd, app) }
+    }
+
+    fn show_popup(&self) {
+        self.popup.1.borrow().show();
+    }
+}
+
 pub fn main() {
 	println!("Hello Windows!");
 
     // Main window
     let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
     register_hotkeys(hwnd);
+    let app_window = AppWindow::new(hwnd);
 
     // Popup window
-    let windows::popup::ManagedWindow(_, ref popup) = PopupWindow::new()
-        .expect("Popup creation failed");
-
+    // let ManagedWindow(_, ref popup) = PopupWindow::new()
+    //     .expect("Popup creation failed");
+    let ref popup = app_window.1.borrow().popup.1;
     let rx = popup.borrow().listen();
-
-    {
-        let popup = popup.borrow();
-        popup.show();
-    }
+    popup.borrow().show();
 
     // Persistent state    
     let mut window_list = Vec::new();
@@ -120,7 +136,7 @@ pub fn main() {
                         Some(&(hwnd, ref title)) => {
                             println!("match! {:?} {}", hwnd, title);
                             let _ = window_tracking::set_foreground_window(hwnd);
-                            // popup.borrow()._hide();
+                            popup.borrow()._hide();
                         },
                         None => println!("no match!")
                     }
@@ -236,6 +252,7 @@ fn register_hotkeys(hwnd: HWND) {
     // Virtual key codes: https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
     // CTRL-ALT-Q to quit
     unsafe { user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, VK_Q); }
+    unsafe { user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, 0x20); } // SPACE
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
@@ -327,6 +344,14 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
         WM_HOTKEY => {
             let modifiers = LOWORD(lparam as DWORD);
             let vk = HIWORD(lparam as DWORD);
+
+            // EXPERIMENT: POPUP
+            if let (_, 0x20) = (modifiers, vk) {
+                println!("GONNA SHOW DEM POPUPS {:?}", vk);
+                if let Some(app_window) = ManagedWindow::<AppWindow>::get_instance_mut(hwnd) {
+                    app_window.show_popup();
+                }
+            }
 
             on_hotkey(modifiers as UINT, vk as UINT)
         },

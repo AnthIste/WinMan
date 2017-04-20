@@ -37,13 +37,24 @@ struct EditBox { hwnd: HWND }
 pub struct ManagedWindow<T>(pub HWND, pub Rc<RefCell<T>>);
 
 impl<T> ManagedWindow<T> {
-    unsafe fn new(hwnd: HWND, window: T) -> Self {
+    pub unsafe fn new(hwnd: HWND, window: T) -> Self {
         let shared = Rc::new(RefCell::new(window));
         user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as LONG_PTR);
 
         println!("Window {:?} is managed", hwnd);
 
         ManagedWindow(hwnd, shared)
+    }
+
+
+    pub unsafe fn get_instance_mut<'a>(hwnd: HWND) -> Option<&'a mut T> {
+        let ptr = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut T;
+
+        if !ptr.is_null() {
+            Some(&mut *ptr)
+        } else {
+            None
+        }
     }
 }
 
@@ -145,9 +156,6 @@ impl PopupWindow {
             try!{ EditBox::new(hwnd, bounds_edit) }
         };
 
-        // Set initial focus
-        unsafe { user32::SetFocus(edit_box.hwnd); }
-
         // Create brush resources
         // TODO: dispose
         let hbrush_primary = unsafe { gdi32::CreateSolidBrush(THEME_BG_COLOR) };
@@ -184,8 +192,12 @@ impl PopupWindow {
 
         unsafe {
             user32::SetWindowPos(self.hwnd, winuser::HWND_TOPMOST, x, y, w, h, 0);
-            user32::ShowWindow(self.hwnd, 5); // SW_SHOW
+            user32::ShowWindow(self.hwnd, SW_SHOWNORMAL);
+            user32::SetForegroundWindow(self.hwnd);
+            user32::SetFocus(self.edit_box.hwnd);
         }
+
+        self.edit_box.clear();
 
         let _ = self.tx.send(PopupMsg::Show);
     }
@@ -222,7 +234,7 @@ impl PopupWindow {
     fn wm_notify(&self, nmhdr: &winuser::NMHDR) {
         match nmhdr.code {
             MSG_NOTIFY_ESCAPE => {
-                unsafe { user32::PostQuitMessage(0); }
+                self._hide();
             },
 
             MSG_NOTIFY_RETURN => {
@@ -244,7 +256,7 @@ impl PopupWindow {
     fn wm_keydown(&self, vk: i32, _flags: i32) {
         match vk {
             VK_ESCAPE => {
-                unsafe { user32::PostQuitMessage(0); }
+                self._hide();
             },
 
             _ => ()
@@ -335,18 +347,8 @@ impl EditBox {
     }
 }
 
-unsafe fn get_window_instance_mut<'a, T>(hwnd: HWND) -> Option<&'a mut T> {
-    let ptr = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut T;
-
-    if !ptr.is_null() {
-        Some(&mut *ptr)
-    } else {
-        None
-    }
-}
-
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let instance = get_window_instance_mut::<PopupWindow>(hwnd);
+    let instance = ManagedWindow::<PopupWindow>::get_instance_mut(hwnd);
 
     if let Some(instance) = instance {
         match msg {
