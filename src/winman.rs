@@ -66,7 +66,7 @@ pub fn main() {
     }
 
     // Persistent state    
-    let mut window_list: Vec<(HWND, String)> = Vec::new();
+    let mut window_list = Vec::new();
 
     let mut msg: MSG = MSG {
         hwnd: hwnd,
@@ -88,14 +88,8 @@ pub fn main() {
 
             match event {
                 PopupMsg::Show => {
-                    const BUFFER_LEN: usize = 1024;
-                    let mut buffer = [0u16; BUFFER_LEN];
-                    let len = unsafe { user32::GetWindowTextW(0x1019e as HWND, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
-                    println!("LEN LEN: {}", len);
-
                     window_list.clear();
                     get_window_list(&mut window_list);
-
                     println!("Grabbed {} window titles", window_list.len());
                 },
 
@@ -123,7 +117,11 @@ pub fn main() {
 
                     let xx = window_list.iter().find(|w| finder.is_match(&w.1));
                     match xx {
-                        Some(w) => println!("match! {:?}", w),
+                        Some(&(hwnd, ref title)) => {
+                            println!("match! {:?} {}", hwnd, title);
+                            let _ = window_tracking::set_foreground_window(hwnd);
+                            // popup.borrow()._hide();
+                        },
                         None => println!("no match!")
                     }
                 }
