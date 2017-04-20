@@ -159,15 +159,20 @@ fn enum_windows<T>(func: T) -> Win32Result<()> where T: FnMut(HWND) -> BOOL {
         result
     }
 
-    unsafe {
+    let result = unsafe {
         let ppfn = Box::into_raw(Box::new(func)) as LPARAM;
-        user32::EnumWindows(Some(helper::<T>), ppfn);
+        let result = user32::EnumWindows(Some(helper::<T>), ppfn);
         Box::from_raw(ppfn as *mut T); // Free
-    }
 
-    match unsafe { kernel32::GetLastError() } {
-        0 => Ok(()),
-        err => Err(err)
+        result
+    };
+
+    match result {
+        FALSE => match unsafe { kernel32::GetLastError() } {
+            0 => Ok(()),
+            err => Err(err)
+        },
+        _ => Ok(())
     }
 }
 
