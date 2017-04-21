@@ -131,6 +131,8 @@ pub fn get_foreground_window() -> Win32Result<Window> {
 
 pub fn set_foreground_window(hwnd: HWND) -> Win32Result<()> {
 	unsafe {
+		use winapi::*;
+		user32::ShowWindow(hwnd, SW_RESTORE);
 		if user32::SetForegroundWindow(hwnd) == 0 {
 			return Err(kernel32::GetLastError());
 		}

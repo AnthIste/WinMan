@@ -253,6 +253,8 @@ fn register_hotkeys(hwnd: HWND) {
     // CTRL-ALT-Q to quit
     unsafe { user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, VK_Q); }
     unsafe { user32::RegisterHotKey(hwnd, 0, MOD_APPCOMMAND, 0x20); } // SPACE
+    unsafe { user32::RegisterHotKey(hwnd, 0, MOD_ALT, 0x20); } // SPACE
+    unsafe { user32::RegisterHotKey(hwnd, 0, MOD_WIN, 0x20); } // SPACE
 
     // ALT-SHIFT-1 to ALT-SHIFT-9 to grab windows,
     // ALT-1 to ALT-9 to switch windows
