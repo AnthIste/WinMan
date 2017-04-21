@@ -132,7 +132,19 @@ pub fn get_foreground_window() -> Win32Result<Window> {
 pub fn set_foreground_window(hwnd: HWND) -> Win32Result<()> {
 	unsafe {
 		use winapi::*;
-		user32::ShowWindow(hwnd, SW_RESTORE);
+		use user32;
+
+		let mut placement: winuser::WINDOWPLACEMENT = ::std::mem::zeroed();
+		placement.length = ::std::mem::size_of::<winuser::WINDOWPLACEMENT>() as u32;
+		user32::GetWindowPlacement(hwnd, &mut placement);
+
+		let sw = match placement.showCmd as i32 {
+			SW_SHOWMAXIMIZED => SW_SHOWMAXIMIZED,
+			SW_SHOWMINIMIZED => SW_RESTORE,
+			_ => SW_NORMAL,
+		};
+
+		user32::ShowWindow(hwnd, sw);
 		if user32::SetForegroundWindow(hwnd) == 0 {
 			return Err(kernel32::GetLastError());
 		}
