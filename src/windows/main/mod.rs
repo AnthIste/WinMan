@@ -1,20 +1,13 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
-use std::sync::Mutex;
 
 use winapi::*;
 use kernel32;
 use user32;
 use spmc;
 
-use winapi::minwindef::*;
-use winapi::windef::*;
-use winapi::winnt::*;
-use winapi::winuser::*;
-
 use constants::*;
 use utils::Win32Result;
-use window_tracking::Config;
 use windows::ManagedWindow2;
 
 const CLASS_NAME: &'static str = "WinmanMainWindow";
@@ -39,6 +32,7 @@ pub enum AppMsg {
 }
 
 pub struct AppWindow {
+    #[allow(dead_code)]
     hwnd: HWND,
     tx: spmc::Sender<AppMsg>,
     rx: spmc::Receiver<AppMsg>,
@@ -115,19 +109,19 @@ impl AppWindow {
             },
 
             (HK_POPUP, _) => {
-                self.tx.send(AppMsg::ShowPopup);
+                let _ = self.tx.send(AppMsg::ShowPopup);
             },
 
             (HK_GRAB, vk) => {
-                self.tx.send(AppMsg::GrabWindow(vk));
+                let _ = self.tx.send(AppMsg::GrabWindow(vk));
             },
 
             (HK_SWITCH, vk) => {
-                self.tx.send(AppMsg::FocusWindow(vk));
+                let _ = self.tx.send(AppMsg::FocusWindow(vk));
             },
 
             (HK_CLEAR, vk) => {
-                self.tx.send(AppMsg::ClearWindow(vk));
+                let _ = self.tx.send(AppMsg::ClearWindow(vk));
             },
 
             _ => {}

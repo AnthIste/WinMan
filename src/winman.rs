@@ -9,32 +9,20 @@ extern crate gdi32;
 extern crate spmc;
 extern crate fuzzy;
 
-mod constants;
-mod utils;
-mod window_tracking;
-mod windows;
-
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 
 use winapi::minwindef::*;
 use winapi::windef::*;
-use winapi::winnt::*;
-use winapi::winuser::*;
 
-use constants::*;
 use utils::Win32Result;
 use window_tracking::Config;
-use windows::ManagedWindow2;
 use windows::main::{AppWindow, AppMsg};
 use windows::popup::{PopupWindow, PopupMsg};
 
-// Hotkey modifiers
-const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
-const MOD_GRAB_WINDOW: UINT = MOD_ALT | MOD_SHIFT;
-const MOD_SWITCH_WINDOW: UINT = MOD_ALT;
-const MOD_CLEAR_WINDOWS: UINT = MOD_CONTROL | MOD_ALT;
+mod constants;
+mod utils;
+mod window_tracking;
+mod windows;
 
 // Runtime data - everything is static
 lazy_static! {
@@ -81,6 +69,8 @@ pub fn main() {
                     window_list.clear();
                     get_window_list(&mut window_list);
                     println!("Grabbed {} window titles", window_list.len());
+
+                    popup.show();
                 },
 
                 AppMsg::GrabWindow(vk) => {
