@@ -47,9 +47,8 @@ impl Finder {
 
                     // Build a new regex that incorporates all the sub-parts
                     // e.g. (Upper\w*)(Camel\w*)(Case\w*)
-                    regex_str.push_str(r"(");
                     regex_str.push_str(term);
-                    regex_str.push_str(r"\w+)");
+                    regex_str.push_str(r"\w+");
                 }
 
                 let re = try! { Regex::new(&regex_str) };
@@ -66,9 +65,8 @@ impl Finder {
                 let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
                 let char_slice = c.encode_utf8(&mut buf);
 
-                regex_str.push_str(r"(");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r".*)");
+                regex_str.push_str(r".*");
             }
 
             try! {
@@ -85,12 +83,9 @@ impl Finder {
                 let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
                 let char_slice = c.encode_utf8(&mut buf);
 
-                regex_str.push_str(r"(");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r"\w+(\s+|$))");
+                regex_str.push_str(r".+(\s+|$).*");
             }
-
-            println!("re_word_breaks: {}", regex_str);
 
             try! {
                 RegexBuilder::new(&regex_str)
@@ -106,9 +101,8 @@ impl Finder {
                 let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
                 let char_slice = c.encode_utf8(&mut buf);
 
-                regex_str.push_str(r"(");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r".*)");
+                regex_str.push_str(r".*");
             }
 
             try! {
@@ -131,15 +125,15 @@ impl Finder {
         let m = self.re.find(s);
 
         // Priority: ExactMatch, StartsWith
-        let result = m.map(|m| {
+        if let Some(m) = m {
             let strlen = s.len();
 
             match (m.start(), m.end()) {
                 (0, end) if end == strlen => return FuzzyResult::ExactMatch,
                 (0, _) => return FuzzyResult::StartsWith,
-                (_, _) => FuzzyResult::Contains,
+                _ => {}
             }
-        });
+        };
 
         // SmartCamel (if available)
         if let Some(ref re_smart_camel) = self.re_smart_camel {
@@ -159,8 +153,8 @@ impl Finder {
         }
 
         // Basic regex
-        if let Some(result) = result {
-            return result;
+        if m.is_some() {
+            return FuzzyResult::Contains;
         }
 
         // Clutching at straws
