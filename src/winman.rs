@@ -77,7 +77,7 @@ pub fn main() {
     let rx = app_window.popup.listen();
 
     // Persistent state    
-    let mut window_list = Vec::new();
+    let mut window_list: Vec<(HWND, String)> = Vec::new();
 
     let mut msg: MSG = MSG {
         hwnd: hwnd,
@@ -98,11 +98,11 @@ pub fn main() {
             use windows::popup::PopupMsg;
 
             match event {
-                PopupMsg::Show => {
-                    window_list.clear();
-                    get_window_list(&mut window_list);
-                    println!("Grabbed {} window titles", window_list.len());
-                },
+                // PopupMsg::Show => {
+                //     window_list.clear();
+                //     get_window_list(&mut window_list);
+                //     println!("Grabbed {} window titles", window_list.len());
+                // },
 
                 PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);

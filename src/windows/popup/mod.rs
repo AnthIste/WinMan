@@ -25,7 +25,6 @@ const MSG_NOTIFY_ESCAPE: u32 = 2;
 const MSG_NOTIFY_CHAR: u32 = 3;
 
 pub enum PopupMsg {
-    Show,
     Search(Option<String>),
     Accept(String),
 }
@@ -166,8 +165,6 @@ impl PopupWindow {
         }
 
         self.edit_box.clear();
-
-        let _ = self.tx.send(PopupMsg::Show);
     }
 
     pub fn _hide(&self) {
