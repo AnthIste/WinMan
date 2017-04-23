@@ -16,25 +16,113 @@ pub enum FuzzyResult {
 }
 
 pub struct Finder {
-    re: Regex
+    re: Regex,
+    re_smart_camel: Option<Regex>,
+    re_upper_camel: Regex,
+    re_vague: Regex,
 }
 
 impl Finder {
-    pub fn new(s: &str) -> Result<Self, ()> {
-        let re = RegexBuilder::new(&s)
-            .case_insensitive(true)
-            .build();
+    pub fn new(query: &str) -> Result<Self, regex::Error> {
+        let re = try! {
+            RegexBuilder::new(&query)
+                .case_insensitive(true)
+                .build()
+        };
 
-        match re {
-            Ok(re) => Ok(Finder {
-                re: re
-            }),
-            Err(_) => Err(())
-        }
+        let re_smart_camel = {
+            // Break up the input query into sub-parts separated by UpperCamelCase
+            let re = Regex::new(r"[A-Z][^A-Z]*").unwrap();
+
+            let mut regex_str = String::new();
+            for capture in re.captures_iter(&query) {
+                let term = capture.get(0).unwrap().as_str();
+
+                // Build a new regex that incorporates all the sub-parts
+                // e.g. (Upper\w*)(Camel\w*)(Case\w*)
+                regex_str.push_str(r"(");
+                regex_str.push_str(term);
+                regex_str.push_str(r"\w+)");
+            }
+
+            if regex_str.len() > 0 {
+                let re = try! { Regex::new(&regex_str) };
+                Some(re)
+            } else {
+                None
+            }
+        };
+
+        let re_upper_camel = {
+            let mut regex_str = String::new();
+            for c in query.chars() {
+                regex_str.push_str(r"(");
+                regex_str.push_str(&c.to_uppercase().to_string());
+                regex_str.push_str(r"\w+)");
+            }
+
+            try! {
+                RegexBuilder::new(&regex_str)
+                    .case_insensitive(false)
+                    .build()
+            }
+        };
+
+        let re_vague = {
+            let mut regex_str = String::new();
+            for c in query.chars() {
+                regex_str.push_str(r"(");
+                regex_str.push_str(&c.to_string());
+                regex_str.push_str(r"\w+)");
+            }
+
+            try! {
+                RegexBuilder::new(&regex_str)
+                    .case_insensitive(true)
+                    .build()
+            }
+        };
+
+        Ok(Finder {
+            re: re,
+            re_smart_camel: re_smart_camel,
+            re_upper_camel: re_upper_camel,
+            re_vague: re_vague,
+        })
     }
 
-    pub fn is_match(&self, s: &str) -> bool {
-        self.re.is_match(s)
+    pub fn is_match(&self, s: &str) -> FuzzyResult {
+        let m = self.re.find(s);
+
+        let result = m.map(|m| {
+            let strlen = s.len();
+
+            match (m.start(), m.end()) {
+                (0, strlen) => FuzzyResult::ExactMatch,
+                (0, _) => FuzzyResult::StartsWith,
+                (_, _) => FuzzyResult::Contains,
+            }
+        });
+
+        if let Some(FuzzyResult::ExactMatch) = result {
+            return FuzzyResult::ExactMatch;
+        }
+
+        if let Some(ref re_smart_camel) = self.re_smart_camel {
+            if let Some(m) = re_smart_camel.find(s) {
+                return FuzzyResult::SmartCamel;
+            }
+        }
+
+        if let Some(FuzzyResult::Contains) = result {
+            return FuzzyResult::Contains;
+        }
+
+        if let Some(m) = self.re_upper_camel.find(s) {
+            return FuzzyResult::UpperCamel;
+        }
+
+        return result.unwrap_or(FuzzyResult::None)
     }
 }
 

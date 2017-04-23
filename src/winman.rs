@@ -105,15 +105,21 @@ pub fn main() {
                 },
 
                 PopupMsg::Accept(s) => {
+                    use fuzzy::FuzzyResult;
+
                     println!("Accept: {}", s);
 
                     let finder = fuzzy::Finder::new(&s).unwrap();
+                    let mut matches: Vec<(HWND, FuzzyResult)> = window_list.iter().map(|w| {
+                        (w.0, finder.is_match(&w.1))
+                    }).collect();
 
-                    let xx = window_list.iter().find(|w| finder.is_match(&w.1));
-                    match xx {
-                        Some(&(hwnd, ref title)) => {
-                            println!("match! {:?} {}", hwnd, title);
-                            let _ = window_tracking::set_foreground_window(hwnd);
+                    matches.sort_by_key(|m| m.1);
+
+                    match matches.first() {
+                        Some(&m) => {
+                            println!("match! {:?}", m);
+                            let _ = window_tracking::set_foreground_window(m.0);
                             popup._hide();
                         },
                         None => println!("no match!")
