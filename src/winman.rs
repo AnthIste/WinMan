@@ -95,7 +95,7 @@ pub fn main() {
         }
 
         while let Ok(event) = rx.try_recv() {
-            use windows::messages::PopupMsg;
+            use windows::popup::PopupMsg;
 
             match event {
                 PopupMsg::Show => {
