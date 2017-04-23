@@ -103,17 +103,25 @@ pub fn main() {
 
                     println!("Accept: {}", s);
 
+                    // Iterate open windows and determine match strength
                     let finder = fuzzy::Finder::new(&s).unwrap();
-                    let mut matches: Vec<(HWND, FuzzyResult)> = window_list.iter().map(|w| {
-                        (w.0, finder.is_match(&w.1))
-                    }).collect();
+                    let mut matches: Vec<_> = window_list.iter()
+                        .map(|w| {
+                            let (hwnd, ref title) = *w;
+                            let m = finder.is_match(&title);
 
-                    matches.sort_by_key(|m| m.1);
+                            (hwnd, title, m)
+                        })
+                        .filter(|m| m.2 != FuzzyResult::None)
+                        .collect();
+
+                    // Sort by FuzzyResult (strength)
+                    matches.sort_by_key(|m| m.2);
 
                     match matches.first() {
-                        Some(&m) if m.1 != FuzzyResult::None => {
-                            println!("match! {:?}", m);
-                            let _ = window_tracking::set_foreground_window(m.0);
+                        Some(&(hwnd, ref title, m)) => {
+                            println!("match! {:?} {}", m, title);
+                            let _ = window_tracking::set_foreground_window(hwnd);
                             popup._hide();
                         },
                         _ => println!("no match!")

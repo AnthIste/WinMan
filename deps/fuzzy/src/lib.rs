@@ -4,12 +4,14 @@ use std::vec::Vec;
 
 use regex::{Regex, RegexBuilder};
 
+// Order is important: used for priority
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FuzzyResult {
     ExactMatch,
     StartsWith,
     SmartCamel,
     UpperCamel,
+    WordBreaks,
     Contains,
     Vague,
     None,
@@ -19,6 +21,7 @@ pub struct Finder {
     re: Regex,
     re_smart_camel: Option<Regex>,
     re_upper_camel: Regex,
+    re_word_breaks: Regex,
     re_vague: Regex,
 }
 
@@ -29,18 +32,6 @@ impl Finder {
                 .case_insensitive(true)
                 .build()
         };
-
-        // let re_upper_camel = try! {
-        //     RegexBuilder::new(&query)
-        //         .case_insensitive(true)
-        //         .build()
-        // };
-        // let re_smart_camel: Option<regex::Regex> = None;
-        // let re_vague = try! {
-        //     RegexBuilder::new(&query)
-        //         .case_insensitive(true)
-        //         .build()
-        // };
 
         let re_smart_camel = {
             // Break up the input query into sub-parts separated by UpperCamelCase
@@ -77,12 +68,33 @@ impl Finder {
 
                 regex_str.push_str(r"(");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r"\w+)");
+                regex_str.push_str(r".*)");
             }
 
             try! {
                 RegexBuilder::new(&regex_str)
                     .case_insensitive(false)
+                    .build()
+            }
+        };
+
+        let re_word_breaks = {
+            let mut regex_str = String::with_capacity(9 * query.len());
+
+            for c in query.chars() {
+                let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
+                let char_slice = c.encode_utf8(&mut buf);
+
+                regex_str.push_str(r"(");
+                regex_str.push_str(char_slice);
+                regex_str.push_str(r"\w+(\s+|$))");
+            }
+
+            println!("re_word_breaks: {}", regex_str);
+
+            try! {
+                RegexBuilder::new(&regex_str)
+                    .case_insensitive(true)
                     .build()
             }
         };
@@ -110,6 +122,7 @@ impl Finder {
             re: re,
             re_smart_camel: re_smart_camel,
             re_upper_camel: re_upper_camel,
+            re_word_breaks: re_word_breaks,
             re_vague: re_vague,
         })
     }
@@ -117,39 +130,45 @@ impl Finder {
     pub fn is_match(&self, s: &str) -> FuzzyResult {
         let m = self.re.find(s);
 
+        // Priority: ExactMatch, StartsWith
         let result = m.map(|m| {
             let strlen = s.len();
 
             match (m.start(), m.end()) {
-                (0, end) if end == strlen => FuzzyResult::ExactMatch,
-                (0, _) => FuzzyResult::StartsWith,
+                (0, end) if end == strlen => return FuzzyResult::ExactMatch,
+                (0, _) => return FuzzyResult::StartsWith,
                 (_, _) => FuzzyResult::Contains,
             }
         });
 
-        if let Some(FuzzyResult::ExactMatch) = result {
-            return FuzzyResult::ExactMatch;
-        }
-
+        // SmartCamel (if available)
         if let Some(ref re_smart_camel) = self.re_smart_camel {
             if re_smart_camel.is_match(s) {
                 return FuzzyResult::SmartCamel;
             }
         }
 
-        if let Some(FuzzyResult::Contains) = result {
-            return FuzzyResult::Contains;
-        }
-
+        // UpperCamel
         if self.re_upper_camel.is_match(s) {
             return FuzzyResult::UpperCamel;
         }
 
+        // Word breaks
+        if self.re_word_breaks.is_match(s) {
+            return FuzzyResult::WordBreaks;
+        }
+
+        // Basic regex
+        if let Some(result) = result {
+            return result;
+        }
+
+        // Clutching at straws
         if self.re_vague.is_match(s) {
             return FuzzyResult::Vague;
         }
 
-        return result.unwrap_or(FuzzyResult::None)
+        FuzzyResult::None
     }
 }
 
