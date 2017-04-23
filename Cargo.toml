@@ -11,6 +11,11 @@ build="build.rs"
 name = "winman"
 path = "src/winman.rs"
 
+# http://doc.crates.io/manifest.html#the-profile-sections
+# The development profile, used for `cargo build`.
+[profile.dev]
+opt-level = 1
+
 [dependencies]
 winapi = "0.2.8"
 comctl32-sys = "0.2.0"

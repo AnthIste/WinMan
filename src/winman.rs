@@ -96,13 +96,7 @@ pub fn main() {
         // Popup messages
         while let Ok(event) = popup_rx.try_recv() {
             match event {
-                PopupMsg::Search(Some(s)) => {
-                    println!("Search: {}", s);
-                },
-
-                PopupMsg::Search(None) => {
-                    println!("Search: <null>");
-                },
+                PopupMsg::Search(_) => {},
 
                 PopupMsg::Accept(s) => {
                     use fuzzy::FuzzyResult;
@@ -117,12 +111,12 @@ pub fn main() {
                     matches.sort_by_key(|m| m.1);
 
                     match matches.first() {
-                        Some(&m) => {
+                        Some(&m) if m.1 != FuzzyResult::None => {
                             println!("match! {:?}", m);
                             let _ = window_tracking::set_foreground_window(m.0);
                             popup._hide();
                         },
-                        None => println!("no match!")
+                        _ => println!("no match!")
                     }
                 }
             }

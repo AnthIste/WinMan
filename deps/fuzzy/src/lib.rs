@@ -30,22 +30,37 @@ impl Finder {
                 .build()
         };
 
+        // let re_upper_camel = try! {
+        //     RegexBuilder::new(&query)
+        //         .case_insensitive(true)
+        //         .build()
+        // };
+        // let re_smart_camel: Option<regex::Regex> = None;
+        // let re_vague = try! {
+        //     RegexBuilder::new(&query)
+        //         .case_insensitive(true)
+        //         .build()
+        // };
+
         let re_smart_camel = {
             // Break up the input query into sub-parts separated by UpperCamelCase
+            // This only makes sense if there are at least two parts
             let re = Regex::new(r"[A-Z][^A-Z]*").unwrap();
+            let matches: Vec<_> = re.captures_iter(&query).collect();
 
-            let mut regex_str = String::new();
-            for capture in re.captures_iter(&query) {
-                let term = capture.get(0).unwrap().as_str();
+            if matches.len() >= 2 {
+                let mut regex_str = String::new();
 
-                // Build a new regex that incorporates all the sub-parts
-                // e.g. (Upper\w*)(Camel\w*)(Case\w*)
-                regex_str.push_str(r"(");
-                regex_str.push_str(term);
-                regex_str.push_str(r"\w+)");
-            }
+                for m in matches {
+                    let term = m.get(0).unwrap().as_str();
 
-            if regex_str.len() > 0 {
+                    // Build a new regex that incorporates all the sub-parts
+                    // e.g. (Upper\w*)(Camel\w*)(Case\w*)
+                    regex_str.push_str(r"(");
+                    regex_str.push_str(term);
+                    regex_str.push_str(r"\w+)");
+                }
+
                 let re = try! { Regex::new(&regex_str) };
                 Some(re)
             } else {
@@ -54,10 +69,14 @@ impl Finder {
         };
 
         let re_upper_camel = {
-            let mut regex_str = String::new();
-            for c in query.chars() {
+            let mut regex_str = String::with_capacity(9 * query.len());
+
+            for c in query.to_uppercase().chars() {
+                let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
+                let char_slice = c.encode_utf8(&mut buf);
+
                 regex_str.push_str(r"(");
-                regex_str.push_str(&c.to_uppercase().to_string());
+                regex_str.push_str(char_slice);
                 regex_str.push_str(r"\w+)");
             }
 
@@ -69,11 +88,15 @@ impl Finder {
         };
 
         let re_vague = {
-            let mut regex_str = String::new();
+            let mut regex_str = String::with_capacity(9 * query.len());
+
             for c in query.chars() {
+                let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
+                let char_slice = c.encode_utf8(&mut buf);
+
                 regex_str.push_str(r"(");
-                regex_str.push_str(&c.to_string());
-                regex_str.push_str(r"\w+)");
+                regex_str.push_str(char_slice);
+                regex_str.push_str(r".*)");
             }
 
             try! {
@@ -98,7 +121,7 @@ impl Finder {
             let strlen = s.len();
 
             match (m.start(), m.end()) {
-                (0, strlen) => FuzzyResult::ExactMatch,
+                (0, end) if end == strlen => FuzzyResult::ExactMatch,
                 (0, _) => FuzzyResult::StartsWith,
                 (_, _) => FuzzyResult::Contains,
             }
@@ -109,7 +132,7 @@ impl Finder {
         }
 
         if let Some(ref re_smart_camel) = self.re_smart_camel {
-            if let Some(m) = re_smart_camel.find(s) {
+            if re_smart_camel.is_match(s) {
                 return FuzzyResult::SmartCamel;
             }
         }
@@ -118,8 +141,12 @@ impl Finder {
             return FuzzyResult::Contains;
         }
 
-        if let Some(m) = self.re_upper_camel.find(s) {
+        if self.re_upper_camel.is_match(s) {
             return FuzzyResult::UpperCamel;
+        }
+
+        if self.re_vague.is_match(s) {
+            return FuzzyResult::Vague;
         }
 
         return result.unwrap_or(FuzzyResult::None)
