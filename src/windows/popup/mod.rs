@@ -15,6 +15,8 @@ use self::edit::EditBox;
 
 mod edit;
 
+const CLASS_NAME: &'static str = "WinmanPopupWindow";
+
 const WIN_DIMENSIONS: (i32, i32) = (340, 50);
 const THEME_BG_COLOR: u32 = 0x00222222;
 const THEME_EDIT_COLOR: u32 = 0x00A3FFA3;
@@ -39,6 +41,27 @@ pub struct PopupWindow {
 }
 
 impl PopupWindow {
+    pub fn register_classes() -> Win32Result<()> {
+        let class_name: Vec<u16> = OsStr::new(CLASS_NAME)
+            .encode_wide()
+            .chain(::std::iter::once(0))
+            .collect();
+
+        let mut window_class: WNDCLASSEXW = unsafe { ::std::mem::zeroed() };
+        window_class.cbSize = ::std::mem::size_of::<WNDCLASSEXW>() as u32;
+        window_class.lpfnWndProc = Some(PopupWindow::window_proc);
+        window_class.lpszClassName = class_name.as_ptr();
+        window_class.style = winuser::CS_HREDRAW | winuser::CS_VREDRAW;
+        window_class.hCursor = unsafe { user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW) };
+
+        unsafe {
+            match user32::RegisterClassExW(&window_class) {
+                0 => Err(kernel32::GetLastError()),
+                _ => Ok(())
+            }
+        }
+    }
+
     pub fn new() -> Win32Result<ManagedWindow2<PopupWindow>> {
         let (w, h) = WIN_DIMENSIONS;
         let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
@@ -47,25 +70,6 @@ impl PopupWindow {
             .collect();
 
         let hwnd = unsafe {
-            let window_class = WNDCLASSEXW {
-                cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-                style: winuser::CS_HREDRAW | winuser::CS_VREDRAW,
-                lpfnWndProc: Some(PopupWindow::window_proc),
-                cbClsExtra: 0,
-                cbWndExtra: 0,
-                hInstance: 0 as HINSTANCE,
-                hIcon: 0 as HICON,
-                hCursor: user32::LoadCursorW(0 as HINSTANCE, winuser::IDC_ARROW),
-                hbrBackground: 0 as HBRUSH,
-                lpszMenuName: 0 as LPCWSTR,
-                lpszClassName: class_name.as_ptr(),
-                hIconSm: 0 as HICON,
-            };
-
-            if user32::RegisterClassExW(&window_class) == 0 {
-                return Err(kernel32::GetLastError());
-            }
-
             user32::CreateWindowExW(
                 0,
                 class_name.as_ptr(),

@@ -38,7 +38,7 @@ pub enum AppMsg {
     ClearWindow(u32),
 }
 
-struct AppWindow {
+pub struct AppWindow {
     hwnd: HWND,
     tx: spmc::Sender<AppMsg>,
     rx: spmc::Receiver<AppMsg>,
@@ -104,6 +104,10 @@ impl AppWindow {
         Ok(ManagedWindow2::new(hwnd, Box::new(app)).unwrap())
     }
 
+    pub fn listen(&self) -> spmc::Receiver<AppMsg> {
+        self.rx.clone()
+    }
+
     fn on_hotkey(&self, id: i32, _modifiers: u32, vk: u32) {
         match (id, vk) {
             (HK_QUIT, _) => {
@@ -141,6 +145,11 @@ impl AppWindow {
                     let vk = HIWORD(lparam as DWORD) as u32;
                     instance.on_hotkey(id, modifiers, vk);
 
+                    return 0;
+                },
+
+                WM_DESTROY => {
+                    user32::PostQuitMessage(0);
                     return 0;
                 },
 
