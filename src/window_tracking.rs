@@ -1,6 +1,4 @@
 use std::collections::{HashMap, VecDeque};
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
 
 use kernel32;
 use user32;
@@ -8,18 +6,17 @@ use winapi::minwindef::*;
 use winapi::windef::*;
 use winapi::winnt::*;
 
+use utils;
 use utils::Win32Result;
-
-const MAX_TITLE_LEN: usize = 256;
 
 #[derive(Clone)]
 pub struct Window {
     hwnd: HWND,
-    title: Option<OsString>,
+    title: Option<String>,
 }
 
 impl Window {
-	pub fn new(hwnd: HWND, title: OsString) -> Self {
+	pub fn new(hwnd: HWND, title: String) -> Self {
 		Window {
 			hwnd: hwnd,
 			title: Some(title),
@@ -32,7 +29,7 @@ impl Window {
 
 	pub fn title(&self) -> Option<&str> {
 		match self.title {
-			Some(ref t) => t.to_str(),
+			Some(ref t) => Some(&t),
 			None => None
 		}
 	}
@@ -108,23 +105,22 @@ impl Config {
 }
 
 pub fn get_foreground_window() -> Win32Result<Window> {
-	let (foreground_window, title) = unsafe {
-		let foreground_window = user32::GetForegroundWindow();
+	let (hwnd, title) = unsafe {
+		let hwnd = user32::GetForegroundWindow();
 
-		if foreground_window == 0 as HWND {
+		if hwnd == 0 as HWND {
 			return Err(kernel32::GetLastError());
 		}
 
-		let mut title = [0 as WCHAR; MAX_TITLE_LEN];
-		if user32::GetWindowTextW(foreground_window, title.as_mut_ptr(), MAX_TITLE_LEN as i32) == 0 {
+		let mut buffer = [0 as WCHAR; 1024];
+		if user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) == 0 {
 			return Err(kernel32::GetLastError());
 		}
 
-		(foreground_window, title)
+		(hwnd, utils::from_wide_slice(&buffer))
 	};
 	
-	let title = OsStringExt::from_wide(&title);
-	let window = Window::new(foreground_window, title);
+	let window = Window::new(hwnd, title);
 
 	Ok(window)
 }

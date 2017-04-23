@@ -126,15 +126,14 @@ pub fn main() {
 }
 
 fn get_window_list(vec: &mut Vec<(HWND, String)>) {
-    const BUFFER_LEN: usize = 1024;
-    let mut buffer = [0u16; BUFFER_LEN];
+    let mut buffer = [0u16; 1024];
 
     enum_windows(|hwnd| {
         // TODO: dynamic buffer with GetWindowTextLength
         // The return value, however, will always be at least as large as the actual
         // length of the text; you can thus always use it to guide buffer allocation
         // (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633521(v=vs.85).aspx)
-        let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), BUFFER_LEN as i32) };
+        let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) };
 
         // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
         if len > 0 {
