@@ -8,26 +8,26 @@ use winapi::minwindef::*;
 use winapi::windef::*;
 use winapi::winnt::*;
 
-use utils::{SendHandle, Win32Result};
+use utils::Win32Result;
 
 const MAX_TITLE_LEN: usize = 256;
 
 #[derive(Clone)]
 pub struct Window {
-    hwnd: SendHandle<HWND>,
+    hwnd: HWND,
     title: Option<OsString>,
 }
 
 impl Window {
 	pub fn new(hwnd: HWND, title: OsString) -> Self {
 		Window {
-			hwnd: SendHandle::new(hwnd),
+			hwnd: hwnd,
 			title: Some(title),
 		}
 	}
 
 	pub fn hwnd(&self) -> HWND {
-		self.hwnd.handle()
+		self.hwnd
 	}
 
 	pub fn title(&self) -> Option<&str> {
