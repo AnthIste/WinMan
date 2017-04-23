@@ -27,7 +27,7 @@ use constants::*;
 use utils::Win32Result;
 use window_tracking::Config;
 use windows::ManagedWindow2;
-use windows::popup::{PopupWindow, ManagedWindow};
+use windows::popup::PopupWindow;
 
 // Hotkey modifiers
 const MOD_APPCOMMAND: UINT = MOD_CONTROL | MOD_ALT;
@@ -49,7 +49,7 @@ fn load_config() -> Option<Config> {
 }
 
 struct AppWindow {
-    popup: ManagedWindow<PopupWindow>
+    popup: ManagedWindow2<PopupWindow>
 }
 
 impl AppWindow {
@@ -63,7 +63,7 @@ impl AppWindow {
     }
 
     fn show_popup(&self) {
-        self.popup.1.borrow().show();
+        self.popup.show();
     }
 }
 
@@ -74,13 +74,7 @@ pub fn main() {
     let hwnd = create_window(Some(window_proc)).expect("Window creation failed");
     register_hotkeys(hwnd);
     let app_window = AppWindow::new(hwnd);
-
-    // Popup window
-    // let ManagedWindow(_, ref popup) = PopupWindow::new()
-    //     .expect("Popup creation failed");
-    let ref popup = app_window.popup.1;
-    let rx = popup.borrow().listen();
-    popup.borrow().show();
+    let rx = app_window.popup.listen();
 
     // Persistent state    
     let mut window_list = Vec::new();
@@ -137,7 +131,7 @@ pub fn main() {
                         Some(&(hwnd, ref title)) => {
                             println!("match! {:?} {}", hwnd, title);
                             let _ = window_tracking::set_foreground_window(hwnd);
-                            popup.borrow()._hide();
+                            app_window.popup._hide();
                         },
                         None => println!("no match!")
                     }

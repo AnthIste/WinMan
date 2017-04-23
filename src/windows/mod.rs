@@ -28,7 +28,7 @@ impl<T> ManagedWindow2<T> {
             }
         }
 
-        println!("Window {:?} is managed 2", hwnd);
+        println!("Window {:?} is managed", hwnd);
 
         Ok(ManagedWindow2 {
             hwnd: hwnd,

@@ -1,6 +1,4 @@
 use std;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::ffi::{OsString, OsStr};
 use std::os::windows::ffi::{OsStringExt, OsStrExt};
 
@@ -34,44 +32,8 @@ pub struct PopupWindow {
 }
 struct EditBox { hwnd: HWND }
 
-pub struct ManagedWindow<T>(pub HWND, pub Rc<RefCell<T>>);
-
-impl<T> ManagedWindow<T> {
-    pub unsafe fn new(hwnd: HWND, window: T) -> Self {
-        let shared = Rc::new(RefCell::new(window));
-        user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, shared.as_ptr() as LONG_PTR);
-
-        println!("Window {:?} is managed", hwnd);
-
-        ManagedWindow(hwnd, shared)
-    }
-
-
-    pub unsafe fn get_instance_mut<'a>(hwnd: HWND) -> Option<&'a mut T> {
-        let ptr = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut T;
-
-        if !ptr.is_null() {
-            Some(&mut *ptr)
-        } else {
-            None
-        }
-    }
-}
-
-impl<T> Drop for ManagedWindow<T> {
-    fn drop(&mut self) {
-        let hwnd = self.0;
-
-        if !hwnd.is_null() {
-            unsafe { user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0); }
-        }
-
-        println!("Window {:?} is kill", hwnd);
-    }
-}
-
 impl PopupWindow {
-    pub fn new() -> Win32Result<ManagedWindow<PopupWindow>> {
+    pub fn new() -> Win32Result<ManagedWindow2<PopupWindow>> {
         let (w, h) = WIN_DIMENSIONS;
         let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
             .encode_wide()
@@ -126,8 +88,7 @@ impl PopupWindow {
 
         match create_result {
             Ok(window) => {
-                let managed = unsafe { ManagedWindow::new(hwnd, window) };
-                Ok(managed)
+                ManagedWindow2::new(hwnd, Box::new(window))
             },
 
             Err(e) => {
@@ -348,7 +309,7 @@ impl EditBox {
 }
 
 unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let instance = ManagedWindow::<PopupWindow>::get_instance_mut(hwnd);
+    let instance = ManagedWindow2::<PopupWindow>::get_instance_mut(hwnd);
 
     if let Some(instance) = instance {
         match msg {
