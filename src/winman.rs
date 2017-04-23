@@ -26,6 +26,7 @@ use winapi::winuser::*;
 use constants::*;
 use utils::Win32Result;
 use window_tracking::Config;
+use windows::ManagedWindow2;
 use windows::popup::{PopupWindow, ManagedWindow};
 
 // Hotkey modifiers
@@ -52,13 +53,13 @@ struct AppWindow {
 }
 
 impl AppWindow {
-    fn new(hwnd: HWND) -> ManagedWindow<Self> {
+    fn new(hwnd: HWND) -> ManagedWindow2<Self> {
         let popup = PopupWindow::new().expect("Popup creation failed");
         let app = AppWindow {
             popup: popup
         };
 
-        unsafe { ManagedWindow::new(hwnd, app) }
+        ManagedWindow2::new(hwnd, Box::new(app)).expect("HWND just created and should be valid")
     }
 
     fn show_popup(&self) {
@@ -77,7 +78,7 @@ pub fn main() {
     // Popup window
     // let ManagedWindow(_, ref popup) = PopupWindow::new()
     //     .expect("Popup creation failed");
-    let ref popup = app_window.1.borrow().popup.1;
+    let ref popup = app_window.popup.1;
     let rx = popup.borrow().listen();
     popup.borrow().show();
 
@@ -350,7 +351,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: UINT, wparam: WPARAM, lpa
             // EXPERIMENT: POPUP
             if let (_, 0x20) = (modifiers, vk) {
                 println!("GONNA SHOW DEM POPUPS {:?}", vk);
-                if let Some(app_window) = ManagedWindow::<AppWindow>::get_instance_mut(hwnd) {
+                if let Some(app_window) = ManagedWindow2::<AppWindow>::get_instance_mut(hwnd) {
                     app_window.show_popup();
                 }
             }

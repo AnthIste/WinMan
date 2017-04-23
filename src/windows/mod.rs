@@ -1,9 +1,73 @@
 use user32;
+use kernel32;
 use winapi::windef::*;
 use winapi::winuser;
+use winapi::*;
+
+use utils::Win32Result;
 
 pub mod messages;
 pub mod popup;
+
+pub struct ManagedWindow2<T> {
+    hwnd: HWND,
+    data: Box<T>
+}
+
+impl<T> ManagedWindow2<T> {
+    pub fn new(hwnd: HWND, data: Box<T>) -> Win32Result<Self> {
+        unsafe {
+            kernel32::SetLastError(0);
+            let prev_value = user32::SetWindowLongPtrW(hwnd, winuser::GWLP_USERDATA, (data.as_ref() as *const T) as LONG_PTR);
+
+            if prev_value == 0 {
+                let err = kernel32::GetLastError();
+                if err != 0 {
+                    return Err(err)
+                }
+            }
+        }
+
+        println!("Window {:?} is managed 2", hwnd);
+
+        Ok(ManagedWindow2 {
+            hwnd: hwnd,
+            data: data
+        })
+    }
+
+
+    pub unsafe fn get_instance_mut<'a>(hwnd: HWND) -> Option<&'a mut T> {
+        let ptr = user32::GetWindowLongPtrW(hwnd, winuser::GWLP_USERDATA) as *mut T;
+
+        if !ptr.is_null() {
+            Some(&mut *ptr)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Drop for ManagedWindow2<T> {
+    fn drop(&mut self) {
+        unsafe { user32::SetWindowLongPtrW(self.hwnd, GWLP_USERDATA, 0); }
+        println!("Window {:?} is kill", self.hwnd);
+    }
+}
+
+impl<T> ::std::ops::Deref for ManagedWindow2<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.data.deref()
+    }
+}
+
+impl<T> ::std::ops::DerefMut for ManagedWindow2<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.data.deref_mut()
+    }
+}
 
 pub type Bounds = (i32, i32, i32, i32);
 
