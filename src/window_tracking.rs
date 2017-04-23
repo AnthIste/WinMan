@@ -4,7 +4,6 @@ use kernel32;
 use user32;
 use winapi::minwindef::*;
 use winapi::windef::*;
-use winapi::winnt::*;
 
 use utils;
 use utils::Win32Result;
@@ -105,21 +104,17 @@ impl Config {
 }
 
 pub fn get_foreground_window() -> Win32Result<Window> {
-	let (hwnd, title) = unsafe {
+	let hwnd = unsafe {
 		let hwnd = user32::GetForegroundWindow();
 
 		if hwnd == 0 as HWND {
 			return Err(kernel32::GetLastError());
 		}
 
-		let mut buffer = [0 as WCHAR; 1024];
-		if user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) == 0 {
-			return Err(kernel32::GetLastError());
-		}
-
-		(hwnd, utils::from_wide_slice(&buffer))
+		hwnd
 	};
-	
+
+	let title = utils::api_wrappers::get_window_text(hwnd).unwrap_or("".to_string());
 	let window = Window::new(hwnd, title);
 
 	Ok(window)

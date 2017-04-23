@@ -9,7 +9,6 @@ extern crate fuzzy;
 use winapi::minwindef::*;
 use winapi::windef::*;
 
-use utils::Win32Result;
 use window_tracking::Config;
 use windows::main::{AppWindow, AppMsg};
 use windows::popup::{PopupWindow, PopupMsg};
@@ -126,48 +125,15 @@ pub fn main() {
 }
 
 fn get_window_list(vec: &mut Vec<(HWND, String)>) {
-    let mut buffer = [0u16; 1024];
+    utils::api_wrappers::enum_windows(|hwnd| {
+        let text = utils::api_wrappers::get_window_text(hwnd);
 
-    enum_windows(|hwnd| {
-        // TODO: dynamic buffer with GetWindowTextLength
-        // The return value, however, will always be at least as large as the actual
-        // length of the text; you can thus always use it to guide buffer allocation
-        // (https://msdn.microsoft.com/en-us/library/windows/desktop/ms633521(v=vs.85).aspx)
-        let len = unsafe { user32::GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) };
-
-        // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
-        if len > 0 {
-            let text = utils::from_wide_slice(&buffer);
+        if let Ok(text) = text {
             vec.push((hwnd, text));
         }
 
         TRUE
     }).expect("Callback does not SetLastError");
-}
-
-// https://github.com/retep998/wio-rs/blob/master/src/apc.rs
-fn enum_windows<T>(func: T) -> Win32Result<()>
-    where T: FnMut(HWND) -> BOOL {
-
-    unsafe extern "system" fn helper<T: FnMut(HWND) -> BOOL>(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let ppfn = lparam as *mut T;
-        let mut func = &mut *ppfn;
-
-        func(hwnd)
-    }
-
-    let result = unsafe {
-        let ppfn = (&func) as *const T;
-        user32::EnumWindows(Some(helper::<T>), ppfn as LPARAM)
-    };
-
-    match result {
-        FALSE => match unsafe { kernel32::GetLastError() } {
-            0 => Ok(()),
-            err => Err(err)
-        },
-        _ => Ok(())
-    }
 }
 
 fn load_config() -> Option<Config> {

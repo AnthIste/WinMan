@@ -1,5 +1,7 @@
 use winapi;
 
+pub mod api_wrappers;
+
 pub type Win32Result<T> = Result<T, winapi::DWORD>;
 
 // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
