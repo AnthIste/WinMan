@@ -130,9 +130,6 @@ fn get_window_list(vec: &mut Vec<(HWND, String)>) {
     let mut buffer = [0u16; BUFFER_LEN];
 
     enum_windows(|hwnd| {
-        use std::ffi::OsString;
-        use std::os::windows::ffi::OsStringExt;
-
         // TODO: dynamic buffer with GetWindowTextLength
         // The return value, however, will always be at least as large as the actual
         // length of the text; you can thus always use it to guide buffer allocation
@@ -141,10 +138,7 @@ fn get_window_list(vec: &mut Vec<(HWND, String)>) {
 
         // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
         if len > 0 {
-            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
-            let slice = unsafe { std::slice::from_raw_parts(buffer.as_ptr(), null) };
-            let text = OsString::from_wide(slice).to_string_lossy().into_owned();
-
+            let text = utils::from_wide_slice(&buffer);
             vec.push((hwnd, text));
         }
 

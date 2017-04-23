@@ -1,12 +1,10 @@
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
-
 use winapi::*;
 use kernel32;
 use user32;
 use gdi32;
 use spmc;
 
+use utils;
 use utils::Win32Result;
 use windows::*;
 
@@ -41,10 +39,7 @@ pub struct PopupWindow {
 
 impl PopupWindow {
     pub fn register_classes() -> Win32Result<()> {
-        let class_name: Vec<u16> = OsStr::new(CLASS_NAME)
-            .encode_wide()
-            .chain(::std::iter::once(0))
-            .collect();
+        let class_name = utils::to_wide_chars(CLASS_NAME);
 
         let mut window_class: WNDCLASSEXW = unsafe { ::std::mem::zeroed() };
         window_class.cbSize = ::std::mem::size_of::<WNDCLASSEXW>() as u32;
@@ -63,10 +58,7 @@ impl PopupWindow {
 
     pub fn new(hwnd_parent: HWND) -> Win32Result<ManagedWindow2<PopupWindow>> {
         let (w, h) = WIN_DIMENSIONS;
-        let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
-            .encode_wide()
-            .chain(::std::iter::once(0))
-            .collect();
+        let class_name = utils::to_wide_chars(CLASS_NAME);
 
         let hwnd = unsafe {
             user32::CreateWindowExW(

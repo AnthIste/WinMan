@@ -1,12 +1,9 @@
-use std;
-use std::ffi::{OsString, OsStr};
-use std::os::windows::ffi::{OsStringExt, OsStrExt};
-
 use comctl32;
 use kernel32;
 use user32;
 use winapi::*;
 
+use utils;
 use utils::Win32Result;
 use windows::*;
 
@@ -20,10 +17,7 @@ impl EditBox {
     pub fn new(parent: HWND, bounds: Bounds) -> Win32Result<Self> {
         // Using Edit Controls
         // https://msdn.microsoft.com/en-us/library/windows/desktop/bb775462(v=vs.85).aspx
-        let class_name: Vec<u16> = OsStr::new("Edit")
-            .encode_wide()
-            .chain(::std::iter::once(0))
-            .collect();
+        let class_name = utils::to_wide_chars("Edit");
 
         let (x, y, w, h) = bounds;
         let hwnd = unsafe {
@@ -78,11 +72,7 @@ impl EditBox {
 
             user32::SendMessageW(self.hwnd, WM_GETTEXT, BUFFER_LEN as WPARAM, buffer.as_ptr() as LPARAM);
 
-            // https://gist.github.com/sunnyone/e660fe7f73e2becd4b2c
-            let null = buffer.iter().position(|x| *x == 0).unwrap_or(BUFFER_LEN);
-            let slice = std::slice::from_raw_parts(buffer.as_ptr(), null);
-
-            OsString::from_wide(slice).to_string_lossy().into_owned()
+            utils::from_wide_slice(&buffer)
         };
 
         if text.len() > 0 {

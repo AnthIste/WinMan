@@ -1,12 +1,10 @@
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
-
 use winapi::*;
 use kernel32;
 use user32;
 use spmc;
 
 use constants::*;
+use utils;
 use utils::Win32Result;
 use windows::ManagedWindow2;
 
@@ -39,10 +37,7 @@ pub struct AppWindow {
 
 impl AppWindow {
     pub fn register_classes() -> Win32Result<()> {
-        let class_name: Vec<u16> = OsStr::new(CLASS_NAME)
-            .encode_wide()
-            .chain(::std::iter::once(0))
-            .collect();
+        let class_name = utils::to_wide_chars(CLASS_NAME);
 
         let mut window_class: WNDCLASSEXW = unsafe { ::std::mem::zeroed() };
         window_class.cbSize = ::std::mem::size_of::<WNDCLASSEXW>() as u32;
@@ -58,10 +53,7 @@ impl AppWindow {
     }
 
     pub fn new() -> Win32Result<ManagedWindow2<Self>> {
-        let class_name: Vec<u16> = OsStr::new(CLASS_NAME)
-            .encode_wide()
-            .chain(::std::iter::once(0))
-            .collect();
+        let class_name = utils::to_wide_chars(CLASS_NAME);
 
         let hwnd = unsafe {
             let hwnd = user32::CreateWindowExW(
