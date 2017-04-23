@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate lazy_static;
-
 extern crate winapi;
 extern crate comctl32;
 extern crate kernel32;
@@ -8,8 +5,6 @@ extern crate user32;
 extern crate gdi32;
 extern crate spmc;
 extern crate fuzzy;
-
-use std::sync::Mutex;
 
 use winapi::minwindef::*;
 use winapi::windef::*;
@@ -23,19 +18,6 @@ mod constants;
 mod utils;
 mod window_tracking;
 mod windows;
-
-// Runtime data - everything is static
-lazy_static! {
-    static ref CONFIG: Mutex<Config> = {
-        let config = load_config().unwrap_or(Config::new());
-        
-        Mutex::new(config)
-    };
-}
-
-fn load_config() -> Option<Config> {
-    Some(Config::new())
-}
 
 pub fn main() {
 	println!("Hello Windows!");
@@ -52,7 +34,8 @@ pub fn main() {
     let popup = PopupWindow::new().expect("Could not create PopupWindow");
     let popup_rx = popup.listen();
 
-    // Persistent state    
+    // Persistent state
+    let mut config = load_config().unwrap_or(Config::new());
     let mut window_list: Vec<(HWND, String)> = Vec::new();
 
     let mut msg = unsafe { ::std::mem::zeroed() };
@@ -74,7 +57,6 @@ pub fn main() {
                 },
 
                 AppMsg::GrabWindow(vk) => {
-                    let mut config = CONFIG.lock().unwrap();
                     let window = window_tracking::get_foreground_window();
 
                     if let Ok(window) = window {
@@ -87,7 +69,6 @@ pub fn main() {
                 },
 
                 AppMsg::FocusWindow(vk) => {
-                    let mut config = CONFIG.lock().unwrap();
                     let window_set = config.get_windows(vk);
 
                     if let Some(window_set) = window_set {
@@ -107,8 +88,6 @@ pub fn main() {
                 },
 
                 AppMsg::ClearWindow(vk) => {
-                    let mut config = CONFIG.lock().unwrap();
-
                     println!("Clearing windows on hotkey {}", vk);
                     config.clear_windows(vk);
                 },
@@ -120,15 +99,6 @@ pub fn main() {
             match event {
                 PopupMsg::Search(Some(s)) => {
                     println!("Search: {}", s);
-
-                    // <_habnabit>	salad, extern fn exportable<F>(mut func: F) where F: FnMut ... { func() }, then pass_to_ffi(|| do_whatever())
-                    // salad: Even for wndproc, you can store user data in the window itself
-                    // SetWindowLongPtr though, because 64bit is a thing
-                    // https://github.com/retep998/wio-rs/blob/master/src/apc.rs
-                    // https://github.com/retep998/wio-rs/blob/master/src/wide.rs
-                    // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633497(v=vs.85).aspx
-                    // use mem::Zero() instead of default::Default()
-                    // WindowsBunny on IRC
                 },
 
                 PopupMsg::Search(None) => {
@@ -205,4 +175,8 @@ fn enum_windows<T>(func: T) -> Win32Result<()>
         },
         _ => Ok(())
     }
+}
+
+fn load_config() -> Option<Config> {
+    Some(Config::new())
 }
