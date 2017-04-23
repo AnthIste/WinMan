@@ -31,7 +31,7 @@ pub fn main() {
     let app_rx = app_window.listen();
 
     // Popup window
-    let popup = PopupWindow::new().expect("Could not create PopupWindow");
+    let popup = PopupWindow::new(app_window.hwnd).expect("Could not create PopupWindow");
     let popup_rx = popup.listen();
 
     // Persistent state

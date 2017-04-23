@@ -32,8 +32,7 @@ pub enum AppMsg {
 }
 
 pub struct AppWindow {
-    #[allow(dead_code)]
-    hwnd: HWND,
+    pub hwnd: HWND,
     tx: spmc::Sender<AppMsg>,
     rx: spmc::Receiver<AppMsg>,
 }

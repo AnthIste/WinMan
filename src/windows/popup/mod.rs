@@ -61,7 +61,7 @@ impl PopupWindow {
         }
     }
 
-    pub fn new() -> Win32Result<ManagedWindow2<PopupWindow>> {
+    pub fn new(hwnd_parent: HWND) -> Win32Result<ManagedWindow2<PopupWindow>> {
         let (w, h) = WIN_DIMENSIONS;
         let class_name: Vec<u16> = OsStr::new("WinmanPopupWindow")
             .encode_wide()
@@ -78,7 +78,7 @@ impl PopupWindow {
                 0,
                 w,
                 h,
-                0 as HWND,
+                hwnd_parent,
                 0 as HMENU,
                 0 as HINSTANCE,
                 0 as LPVOID)
