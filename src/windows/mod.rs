@@ -1,5 +1,3 @@
-pub mod popup;
-
 use user32;
 use kernel32;
 use winapi::windef::*;
@@ -7,6 +5,9 @@ use winapi::winuser;
 use winapi::*;
 
 use utils::Win32Result;
+
+pub mod main;
+pub mod popup;
 
 pub struct ManagedWindow2<T> {
     hwnd: HWND,
