@@ -134,10 +134,12 @@ pub fn main() {
 
 fn get_window_list(vec: &mut Vec<(HWND, String)>) {
     utils::api_wrappers::enum_windows(|hwnd| {
-        let text = utils::api_wrappers::get_window_text(hwnd);
+        let is_visible = unsafe { user32::IsWindowVisible(hwnd) };
 
-        if let Ok(text) = text {
-            vec.push((hwnd, text));
+        if is_visible != 0 {
+            if let Ok(text) = utils::api_wrappers::get_window_text(hwnd) {
+                vec.push((hwnd, text));
+            }
         }
 
         TRUE
