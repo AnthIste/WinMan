@@ -65,8 +65,9 @@ impl Finder {
                 let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
                 let char_slice = c.encode_utf8(&mut buf);
 
+                regex_str.push_str(r"(^|\s+)");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r".*");
+                regex_str.push_str(r".*(\s+|$).*");
             }
 
             try! {
@@ -85,7 +86,7 @@ impl Finder {
 
                 regex_str.push_str(r"(^|\s+)");
                 regex_str.push_str(char_slice);
-                regex_str.push_str(r".+(\s+|$).*");
+                regex_str.push_str(r".+(\s+|$)\**");
             }
 
             try! {
