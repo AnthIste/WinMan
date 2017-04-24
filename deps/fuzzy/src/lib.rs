@@ -126,15 +126,15 @@ impl Finder {
         let m = self.re.find(s);
 
         // Priority: ExactMatch, StartsWith
-        // if let Some(m) = m {
-        //     let strlen = s.len();
+        if let Some(m) = m {
+            let strlen = s.len();
 
-        //     match (m.start(), m.end()) {
-        //         (0, end) if end == strlen => return FuzzyResult::ExactMatch,
-        //         (0, _) => return FuzzyResult::StartsWith,
-        //         _ => {}
-        //     }
-        // };
+            match (m.start(), m.end()) {
+                (0, end) if end == strlen => return FuzzyResult::ExactMatch,
+                // (0, _) => return FuzzyResult::StartsWith,
+                _ => {}
+            }
+        };
 
         // SmartCamel (if available)
         if let Some(ref re_smart_camel) = self.re_smart_camel {
