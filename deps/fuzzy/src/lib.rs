@@ -83,6 +83,7 @@ impl Finder {
                 let mut buf = [0; 4]; // A buffer of length four is large enough to encode any char
                 let char_slice = c.encode_utf8(&mut buf);
 
+                regex_str.push_str(r"(^|\s+)");
                 regex_str.push_str(char_slice);
                 regex_str.push_str(r".+(\s+|$).*");
             }
@@ -125,15 +126,15 @@ impl Finder {
         let m = self.re.find(s);
 
         // Priority: ExactMatch, StartsWith
-        if let Some(m) = m {
-            let strlen = s.len();
+        // if let Some(m) = m {
+        //     let strlen = s.len();
 
-            match (m.start(), m.end()) {
-                (0, end) if end == strlen => return FuzzyResult::ExactMatch,
-                (0, _) => return FuzzyResult::StartsWith,
-                _ => {}
-            }
-        };
+        //     match (m.start(), m.end()) {
+        //         (0, end) if end == strlen => return FuzzyResult::ExactMatch,
+        //         (0, _) => return FuzzyResult::StartsWith,
+        //         _ => {}
+        //     }
+        // };
 
         // SmartCamel (if available)
         if let Some(ref re_smart_camel) = self.re_smart_camel {
