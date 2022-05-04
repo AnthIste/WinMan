@@ -104,11 +104,11 @@ impl Config {
 }
 
 pub fn get_foreground_window() -> Win32Result<Window> {
-	let hwnd = unsafe {
-		let hwnd = user32::GetForegroundWindow();
+	let hwnd = {
+		let hwnd = unsafe { user32::GetForegroundWindow() };
 
 		if hwnd == 0 as HWND {
-			return Err(kernel32::GetLastError());
+			return Err(unsafe { kernel32::GetLastError() });
 		}
 
 		hwnd

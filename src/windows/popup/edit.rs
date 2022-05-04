@@ -49,12 +49,13 @@ impl EditBox {
         let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
         unsafe {
             user32::SendMessageW(hwnd, EM_GETRECT as UINT, 0, (&rect as *const _) as LPARAM);
+        }
             rect.left += 5;
             rect.top += 2;
             rect.bottom += 2;
+        unsafe {
             user32::SendMessageW(hwnd, EM_SETRECT as UINT, 0, (&rect as *const _) as LPARAM);
         }
-
         // Subclass the window proc to allow message intercepting
         unsafe {
             comctl32::SetWindowSubclass(hwnd, Some(subclass_proc_edit), 666, 0);
